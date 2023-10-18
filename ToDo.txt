@@ -1,0 +1,30 @@
+ToDo
+
+1. Derivation of variables
+- Derive all needed variables using the variable names of the document VariableDerivation29082023.docx (located in the main folder).
+
+2. Running of R Code
+- the R code is included in an R markdown file in order to have a report with results at the end to share
+- Open the R Project "Lifelines" located in the main folder
+- Open the R Code "reportRQ2_Lifelines.Rmd"
+- install all needed R libraries
+- Add the name of your long format dataset (including 3 waves: COVQ24, COVQ27 and COVQ29) file on line 71 after "Data/"
+- long format data should indlude variable named "VISIT" with categories 0, 1 and 2 to distinguish between the waves.
+- Put your data in the folder "Data" or change the path on line 71 to read in the data
+- line 344: Add information on how the number of Covid-19 infections per participants was derived
+- lines 221: change name of variable to the one that distinguished between the waves to only have data of wave COVQ29
+- run the R code chunks one by one to see if it runs without errors
+- chunk 20 (lines 878 - 885), chunk 38 (lines 1021 - 1028), chunk 56 (lines 1161 - 1169), chunk 74 (lines 1302 - 1308), chunk 92 (lines 1440 - 1446)
+  and chunk 110 (lines 1577 - 1584) only need to be run once. As these chunks are really time consuming, the results get saved and can be loaded in 
+  each following chunk. To avoid to have the run every time, comment these chunks after they run successfully once.
+
+
+3. Results
+- Send back the report and the Results folder of each RQ after everything ran successfully
+
+
+Questions and Errors:
+
+Please send any questions or errors to anna.schritz@lih.lu
+
+

@@ -1,0 +1,1829 @@
+---
+title: "RQ2: Sleep disturbances, multiple Covid-19 infections, long-COVID and mental
+  health symptoms"
+author: "Anna Schritz"
+date: "`r format(Sys.time(), '%d/%m/%Y')`"
+output:
+  word_document:
+    toc: yes
+  html_document:
+    toc: yes
+subtitle: "ORCHESTRA - Lifelines"
+---
+
+```{r setup, include=FALSE}
+options(knitr.kable.NA = "")
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message = FALSE)
+
+Sys.setenv(LANG = "en")
+set.seed(684324)
+Sys.setlocale("LC_TIME", "C")
+
+#devtools::install_deps()
+
+
+```
+
+
+```{r loading packages and functions}
+# Libraries
+library(knitr)
+library(flextable)
+library(stringr)
+library(tibble)
+library(tidyverse)
+library(htmltools)
+library(medflex)
+library(car)
+
+
+# Loading function ------------------------------------------------------------
+source("FunctionDescriptiveStatisticsTable.R")
+
+
+
+# table references
+table_nums <- captioner::captioner(prefix = "Table")
+fig_nums <- captioner::captioner(prefix = "Figure")
+
+t.ref <- function(x) {
+  stringr::str_extract(table_nums(x), "[^:]*")
+}
+
+
+f.ref <- function(x) {
+  stringr::str_extract(fig_nums(x), "[^:]*")
+}
+
+
+# flextable default settings
+set_flextable_defaults(font.size = 8, line_spacing = 0.8, table.layout = 'autofit')
+```
+
+
+
+
+
+```{r loading derived data}
+# long format dataset (inlcuding 3 waves: COVQ24, COVQ27 and COVQ29)
+orclu.l <- read.csv("Data/orclu_long.csv", stringsAsFactors=TRUE)
+```
+
+
+
+```{r data manipulation: factors}
+# change order of factor levels
+
+# Marital status
+orclu.l$DEMOGRAPHICS_47 <- factor(orclu.l$DEMOGRAPHICS_47,
+                                                levels = c("Single", "Married", "Registered partnership", "Partnership", "Divorced", "Widowed", "Other status - Please specify"), labels = c("Single", "Married", "Registered partnership", "Partnership", "Divorced", "Widowed", "Other status"))
+
+
+
+
+# Employment status
+orclu.l$DEMOGRAPHICS_61 <- factor(orclu.l$DEMOGRAPHICS_61,
+                                                levels = c("Full-time employed", "Part-time employed", "Self-employed or working for own family business", "Unemployed", "In vocational training/retraining/education", "Parental leave", "In retirement or early retirement", "Permanently sick or disabled", "Looking after home or family", "Short-time working b", "Other, please specify:"),
+                                                labels = c("Full-time employed", "Part-time employed", "Self-employed or working for own family business", "Unemployed", "In vocational training/retraining/education", "Parental leave", "In retirement or early retirement", "Permanently sick or disabled", "Looking after home or family", "Short-time working", "Other"))
+
+
+# work status
+orclu.l$work.status <- factor(orclu.l$work.status, levels = c("Unemployed", "Retired", "Employed"))
+
+
+# Migration status
+orclu.l$migration.status <- factor(orclu.l$migration.status,
+                                   levels = c("Second generation immigrant", "First generation immigrant",
+                                              "Native born"))
+
+
+
+
+
+# column numbers of CES-D variable
+cesd.col <- which(startsWith(colnames(orclu.l), "CES") == TRUE)[-1]
+
+# changing factor level order of CES-D variables
+orclu.l[, cesd.col] <- lapply(orclu.l[,cesd.col], factor, ordered = TRUE,
+              levels=c("Rarely or None of the time (less than 1 day)", "Some or a Little of the time (1 - 2 days)", "Occasionally or a moderate amount of time (3 - 4 days)", "Most or All of the time (5 - 7 days)"))
+
+
+
+# column numbers of GAD-7 variable
+GAD.col <- which(startsWith(colnames(orclu.l), "GAD") == TRUE)[-1]
+
+# changing factor level order of GAD-7 variables
+orclu.l[, GAD.col] <- lapply(orclu.l[,GAD.col], factor, ordered = TRUE,
+              levels=c("Not at all", "Several days", "More than half the days", "Nearly every day"))
+
+# changing factor order GAD-7 cat
+orclu.l$cat_GAD7 <- factor(orclu.l$cat_GAD7, levels = c("None", "Mild", "Moderate", "Severe"))
+
+# column numbers of PSS variable
+PSS.names <- c("LN_66822_8", "LN_66824_4", "LN_66825_1", "LN_66830_1")
+
+# changing factor level order of PSS variables
+orclu.l[, PSS.names] <- lapply(orclu.l[,PSS.names], factor, ordered = TRUE,
+              levels=c("Never", "Almost never", "Sometimes", "Fairly often", "Very often"))
+
+
+# column numbers of UCLA variable
+UCLA.col <- which(startsWith(colnames(orclu.l), "UCLA") == TRUE)[-1]
+
+# changing factor level order of UCLA variables
+orclu.l[, UCLA.col] <- lapply(orclu.l[,UCLA.col], factor, ordered = TRUE,
+              levels=c("Hardly ever or never", "Some of the time", "Often"))
+
+
+# column numbers of BRS variable
+BRS.col <- which(startsWith(colnames(orclu.l), "BRS") == TRUE)
+
+# changing factor level order of BRS variables
+orclu.l[, BRS.col] <- lapply(orclu.l[,BRS.col], factor, ordered = TRUE,
+              levels=c("Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"))
+
+
+# BRS cut-off factor order
+orclu.l$cat_BRS <- factor(orclu.l$cat_BRS, levels = c("Low resilience", "Normal resilience", "High resilience"))
+
+# sleep data
+catSleepProb <- c("SLEEP_PROBLEMS_TIME", "SLEEP_PROBLEMS_WAKINGUP",
+              "SLEEP_PROBLEMS_BREATHING", "SLEEP_PROBLEMS_COUGH_SNORE",
+              "SLEEP_PROBLEMS_FEELING_HOT", "SLEEP_PROBLEMS_BAD_DREAMS", "SLEEP_PROBLEMS_PAIN",
+              "SLEEP_TROUBLE_STAYINGAWAKE",
+              "SLEEP_LACKING_ENTHUSIASM")
+
+# changing factor level order of sleep problem variables
+orclu.l[, catSleepProb] <- lapply(orclu.l[,catSleepProb], factor, ordered = TRUE,
+              levels=c("Not during the past month", "Less than once a week", "Once or twice a week", "Three or more times a week"))
+
+
+
+# long covid symptoms
+longCovSymp <-c("SCT_267036007_",
+             "SCT_84229001_367391008_",
+             "LN_75325_1_WORSENING",
+             "SCT_40917007_",
+             "SCT_49727002_",
+             "SCT_21522001_",
+             "SCT_25064002_",
+             "SCT_248657009",
+             "SCT_68962001_",
+             "SCT_57676002_",
+             "SCT_62507009",
+             "SCT_62315008_",
+             "SCT_106168000",
+             "SCT_404640003",
+             "SCT_271807003_",
+             "SCT_44169009_",
+             "SCT_36955009_271801002_",
+             "LN_75325_1_OTH")
+
+
+# changing factor level order of long covid symptoms variables
+orclu.l[, longCovSymp] <- lapply(orclu.l[,longCovSymp], factor, levels=c("Yes", "No"))
+
+orclu.l$AGGREGATED_1280 <- factor(orclu.l$AGGREGATED_1280, levels = c("Yes", "No", "Unkown"))
+
+
+# number of Covid infection as category
+orclu.l$nbCovInfections.cat <- factor(orclu.l$nbCovInfections)
+
+
+# SLEEP category variables as factor
+orclu.l$SLEEP_EFFICIENCY.cat <- factor(orclu.l$SLEEP_EFFICIENCY.cat)
+orclu.l$SLEEP_DISTURBANCE.cat <- factor(orclu.l$SLEEP_DISTURBANCE.cat)
+orclu.l$DAYTIME_DYSFUNCTION.cat <- factor(orclu.l$DAYTIME_DYSFUNCTION.cat)
+orclu.l$SLEEP_LATENCY.cat <- factor(orclu.l$SLEEP_LATENCY.cat)
+orclu.l$SLEEP_ACTUALHOURS.cat <- factor(orclu.l$SLEEP_ACTUALHOURS.cat)
+orclu.l$PSQI_score.cat <- factor(orclu.l$PSQI_score.cat)
+
+
+# MDD
+orclu.l$n.MDD <- factor(orclu.l$MDD, levels = c(0,1))
+orclu.l$MDD <- factor(orclu.l$MDD, levels = c(0,1), labels = c("No", "Yes"))
+
+```
+
+
+```{r analysis datasets}
+
+# Last wave
+# include only participants who had no missing values in any variables of interest of RQ2
+orclu.v2 <- orclu.l %>%
+    dplyr::select(PSEUDONYM, VISIT, nbCovInfections, CES_D_SCALE_CES_D, cat_CESD, MDD, GAD_7_SCALE_GAD_7, cat_GAD7, PERCEIVED_STRESS_SCALE_PSS, UCLA_LONELINESS_SCALE_UCLA, BRIEF_RESILIENCE_SCORE_BRS, cat_BRS, DEMOGRAPHICS_45, DEMOGRAPHICS_46, SLEEP_ACTUALHOURS.cat, SLEEP_EFFICIENCY.cat, SLEEP_DISTURBANCE.cat, DAYTIME_DYSFUNCTION.cat, SLEEP_LATENCY.cat, PSQI_score, PSQI_score.cat) %>%
+    filter(VISIT == 2) %>% 
+    na.omit()
+
+
+# MDD from character to numeric (factor)
+orclu.v2$MDD <- factor(orclu.v2$MDD, levels = c("No", "Yes"), labels = c(0, 1))
+
+
+
+ID.Analysis <- as.character(droplevels(orclu.v2$PSEUDONYM))
+
+# orclu.l dataset with all visit but only including participants without missing values in variables needed for mediation analysis
+posID <- orclu.l$PSEUDONYM %in% ID.Analysis
+
+orclu.l <- orclu.l %>%
+    filter(posID == TRUE)
+
+# check 
+# ID.orclu <-  unique(as.character(droplevels(orclu.l$PSEUDONYM)))
+# table(ID.Analysis == ID.orclu)
+
+# drop unused levels of factor variables ----------------------------------
+orclu.l <- orclu.l %>% droplevels()
+orclu.v2 <- orclu.v2 %>% droplevels()
+
+```
+
+
+
+\newpage
+
+ \newline
+ 
+ <br>
+ 
+ <br>
+ 
+ <br>
+ 
+ <br>
+ 
+ <br>
+
+
+**Report version**: 001-`r format(Sys.time(), '%d/%m/%Y')`
+
+**SAP version**: V3
+
+**Report revision**: *Report revision history*
+```{r revision table}
+revtab <- data.frame("Section number changed" = c(NA, NA, NA), "Description and reason of change" = c(NA, NA, NA), "Date changed" = c(NA, NA, NA))
+colnames(revtab) <- c("Section number changed", "Description and reason of change", "Date changed")
+
+#kable(revtab)
+
+```
+
+
+**Report contributors**: 
+
+
+**Signatures**:
+
+-__________________________________   
+Anna Schritz, Methodologist, CCMS, Luxembourg Institute of Health                   
+
+-__________________________________  
+Michel Vaillant, Head of CCMS, CCMS, Luxembourg Institute of Health
+
+-__________________________________  
+Gloria Aguayo, Scientist, DoPH, Luxembourg Institute of Health:   
+
+
+\newpage
+
+# Abstract 
+This report will be about the methodology and results of the research question 2 (RQ2) of the ORCHESTRA task 3.4.
+
+# Introduction
+Mental health symptoms such as depression, anxiety and stress have also increased during the pandemics, especially in women, young people and low-income populations. Sleep disturbances are more likely to happen in people infected with Covid-19, when someone in the same household is infected, or when there is fear of infection. Although much less described, the inverse association is also possible, with sleep disturbance associated with a higher risk of contracting Covid-19 infection or a higher risk of more severe disease. While the pandemic is achieving more stable periods, people started to improve their sleep. However, some individuals persist in having sleep disturbances or even experience an aggravation of these symptoms. Sleep disturbances can be a marker of mental health and are associated with Covid-19 infections. Additionally, sleep disturbances are associated with long-COVID symptoms.
+
+# Objective of the report
+**RQ2**: To evaluate the associations between sleep disturbances and multiple Covid-19 infections as well as to mental health symptoms.  
+
+**Specific hypothesis under RQ2**: Sleep disturbances are associated with multiple Covid-19 infections and the association is mediated by mental health symptoms.  
+
+
+# Data
+Population: We used prospective data used from the ORCHESTRA study. A health, psychological and behavioral factor questionnaire  was administered from December 2021 until January 2023 in the participating cohorts at heterogeneous timepoints.  We included  adult participants that have fulfilled the PSQI questionnaire about sleep, and the psychological questionnaires about depression, anxiety, stress and, resilience.
+
+## Luxembourg
+For Luxembourg, data of wave 2, performed in December 2022/ January 2023 will be used for the main analysis. Of 902 participants in wave 2, we excluded 36 participants due to missing values in the sleep characteristics, psychological scales or age and sex. Therefore observations of 866 participants were used for the analysis.
+
+## Lifelines
+For Lifelines, data of waves COVQ29 (29.09.2022 - 19.10.2022) will be used for the main analysis. Additionally we will use information of wave COVQ24 (20.12.2021 - 12.01.2022) and COVQ27 (31.05.2022 - 27.06.2022) for descriptive tables.  
+   
+
+### Data Manipulation/ Derivation
+
+#### Number of Covid Infections
+- The total number of Covid-19 infection at a timepoint close to end 2022 and beginning of 2023.   
+   
+   
+##### General
+Participants had to answer the following question in the ORCHESTRA questionnaire:   
+"3.1 Until today, have you ever tested positive for the Coronavirus (Sars-Cov-2)?"   
+If this question was answered with "Yes", then the participants were able to include the dates of the positive tests:   
+"If ‘1 – Yes’ to 3.1, Please indicate the date of the positive test (if had multiple positive tests please add the date of each positive test)".   
+   
+As the mediation analysis will be cross-sectional, we will use the visit that is closest to December 2022/ January 2023. Though for the derivation of number of Covid-19 infections, information of previous visits should be taken into account (if available). All dates of positive test should be considered as a Covid-19 infection if the duration between the dates are equal or more than 90 days apart.   
+If information of previous studies are available, e.g. self-reported dates, PCR tests or antibody tests, this information, and in best case the dates of these tests, should be taken into account as well.
+
+##### Luxembourg
+For Luxembourgish data, information of participants from a previous study (CONVINCE) was used to be able to include as much information about Covid-19 infections as possible as in Orchestra Luxembourg in each visit only the question was asked, if participants tested positive between the last visit and the current visit. The original question in ORCHESTRA though was, if participants ever tested positive.
+Therefore, information of the CONVINCE study was used to derive the number of Covid-19 infection variable:
+   
+- Information of participants of positive test and dates of positive tests   
+   
+- Information of PCR test results that were performed in the CONVINCE study   
+   
+- Information about antibody tests    
+
+
+##### Lifelines  
+
+   
+   
+   
+### Mental Health Scales
+For psychological health syndromes different scales are being used:   
+
+- Mini International Neuropsychiatric Interview
+
+- UCLA Loneliness Scale for Loneliness with a score ranging from 0 to 9 (higher scores indicating higher level of loneliness)   
+
+
+
+
+
+#### Sleep
+##### Sleep duration
+Sleep duration is defined as the total time of sleep (in hours) and is categorized into the four following categories:
+   
+- $\ge$ 7 hours --> 0   
+   
+- $\ge$ 6 &  $<$ 7 --> 1   
+   
+- $\ge$ 5 &  $<$ 6 --> 2   
+   
+- \< 5 hours --> 3
+
+##### Sleep efficiency
+Sleep efficiency is defined as sleep duration divided by hours in bed times 100%.    
+$SleepEfficiency = (SleepDuration / HoursInBed) * 100\%$   
+The percentage can be categorized as following:   
+
+
+- $\ge$ 85% --> 0   
+
+- $\ge$ 75% &  $<$ 85% --> 1   
+
+- $\ge$ 65% &  $<$ 75% --> 2    
+
+- $<$ 65% --> 3   
+
+
+
+##### Sleep disturbance
+The sleep disturbance variable is a score based on the following questions:   
+
+- During the past month, how often have you had trouble sleeping because you wake up in the middle of the night or early  morning.   
+
+- During the past month, how often have you had trouble sleeping because you have to get up to use the bathroom.    
+- During the past month, how often have you had trouble sleeping because you have to get up to use the bathroom.    
+- During the past month, how often have you had trouble sleeping because you cough.    
+
+- During the past month, how often have you had trouble sleeping because you feel too cold.      
+
+- During the past month, how often have you had trouble sleeping because you feel too hot.     
+
+- During the past month, how often have you had trouble sleeping because you have bad dreams.    
+
+- During the past month, how often have you had trouble sleeping because you have pain.     
+
+- During the past month, how often have you had trouble sleeping because you have other reason(s).   
+
+   
+The sum of scores of these questions can then be categorized as following:   
+
+- 0 --> 0   
+
+- $\ge$ 1 & $\le$ 6 --> 1   
+
+- $>$ 6 & $\le$ 12 --> 2   
+
+- $>$ 12 --> 3
+
+
+
+##### Daytime dysfunction
+The daytime dysfunction variable is based on the following questions:   
+
+- During the past month, how often have you had trouble staying awake while driving, eating meals, or engaging in social activity?     
+
+-  During the past month, how much of a problem has it been for you to keep up enough enthusiasm to get things done?   
+
+   
+The sum of score of these questions can be categorized as following:   
+
+- 0 --> 0   
+
+- $\ge$ 1  &  $\le$ 2 --> 1   
+
+- $>$ 2  &  $\le$ 4 --> 2   
+
+- $>$ 4  &  $\le$ 6 --> 3   
+   
+
+##### Sleep latency
+The sleep latency variable is based on the following questions:  
+
+- *SLEEP_TIMETOSLEEP*: During the past month, how long (in minutes) has it usually taken you to fall asleep each night?    
+
+- *SLEEP_PROBLEMS_TIME*: During the past month, how often have you had trouble sleeping because you cannot get to sleep within 30 minutes    
+
+
+**Categorization of *SLEEP_TIMETOSLEEP***:   
+
+- $<$ 15 minutes -->  0   
+   
+- $\ge$ 15 & $<$ 30 minutes --> 1    
+    
+- $\ge$ 30 & $<$ 60 minutes --> 2   
+   
+- $\ge$ 60 minutes --> 3    
+   
+   
+**Categorization of *SLEEP_PROBLEMS_TIME***:
+   
+- Not during past month --> 0   
+   
+- Less than once a week --> 1   
+   
+- Once or twice a week --> 2   
+   
+- Three or more times a week --> 3   
+
+
+**The sum of score of these two questions can be categorized as following:**   
+
+- 0 --> 0   
+
+- $>$ 0 & $\le$ 2 --> 1    
+   
+- $>$ 2 & $\le$ 4 --> 2   
+
+- $>$ 4 & $\le$ 6 --> 3   
+   
+
+
+### Missing data
+- If information was missing for visit 1 and 2 of characteristics (sex, employment status/ work status, education) last observation carried forward (LOCF) was used to impute the missing values.   
+   
+- For missing information of BRS of Baseline ORCLU, BRS values of ORCLU visit 1 were used (next observation carried backward).
+
+
+# Methods
+
+## Descriptive Analysis
+Descriptive analysis of number of Covid-19 infections, psychological scales and long-COVID symptoms. For categorical variables, frequency and percentage are shown and for continuous variables mean and standard deviations (SD). In case of non-normal distributed data, median and 25% and 75% quantiles are shown. Non-parametric tests are applied to compare between visits using Kruskal-Wallis Rank Sum Test for continuous data and Chi-Square test for categorical data.
+
+
+## Mediation Analysis  
+Separate Natural Effect Models (R package medflex) for mediation analysis to evaluate each sleep characteristic as a predictor of number of Covid-19 infections using mental health scales as individual mediators. Additionally, we will perform mediation analysis for each sleep characteristics and including all five psychological scales as mediators (as interactions) at the same time. Confounders added to the mediation analysis are age and sex. When fitting the natural effects mediation model, the imputation based approach will be applied. Natural direct and indirect effects will be estimated, with direct effect being defined as the effect of the exposure on the outcome absent the mediators and the indirect effect being the effect of exposure on the outcome that works through the mediator. Standard error are estimated using 1000 bootstrapped replications.   
+Participants of visit 2 will be used for mediation analysis, as the number of Covid-19 infections is the highest.   
+
+## Poisson Regression
+Separate poisson regression will be performed with number of Covid-19 infections as outcome to evaluate each sleep characteristic parameter as independent variable. Following adjusting variables are added in each regression analysis: age and sex.   
+Additionally, a poisson regression will be performed including all sleep characteristics and psychological scales as independent variables as well as age and sex as adjusting variables.
+
+
+# Results
+
+## Baseline characteristics
+
+### Participants Characteristics
+
+```{r, echo = FALSE}
+tab_Base <- table_nums(name = "Base", 
+                        caption = "Descriptive Statistics of Baseline Characteristics")
+```
+
+`r table_nums('Base')`
+```{r Characteristics baseline}
+# select variables for the descriptive table
+varChar <- c("DEMOGRAPHICS_45", "DEMOGRAPHICS_46", "DEMOGRAPHICS_47", "education", "DEMOGRAPHICS_61", "work.status", "migration.status", "physical.activity", "smoking.status","nbCovInfections", "nbCovInfections.cat")
+
+namesChar <- c("Gender", "Age", "Marital Status", "Education", "Employment Status", "Work status", "Migration Status", "Hours of physical activity per week", "Smoking", "Number of Covid-19 Infections", "Number of Covid-19 infections (cat.)")
+
+orclu.l$VISIT <- as.factor(orclu.l$VISIT)
+
+char.tab <- descrByCatTabPub(varChar, namesChar, catVar = "VISIT", data = orclu.l, print = FALSE, contTest = rep("anova", length((varChar))), addN = TRUE)
+
+varCol <- row.names(char.tab)
+varCol <- gsub("[.][0-9]*$", "", varCol)
+varCol <- gsub("X", "", varCol)
+varCol <- str_replace_all(varCol, pattern = "[.]", replacement = " ")
+
+tabDescrBase <- tibble("Characteristics" = varCol , "Baseline" = char.tab[,1], "Visit 1" = char.tab[,2], " Visit 2" = char.tab[,3], " " = char.tab[,4])
+
+
+# change to median and IQR for Physical Activity
+# V0
+tabDescrBase[which(tabDescrBase$Characteristics == "Hours of physical activity per week"),2] <- paste0(round(median(orclu.l$physical.activity[orclu.l$VISIT == "0"], na.rm = TRUE),2), " (", quantile(orclu.l$physical.activity[orclu.l$VISIT == "0"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$physical.activity[orclu.l$VISIT == "0"], na.rm = TRUE)[[4]], "); ", "N=",table(is.na(orclu.l$physical.activity[orclu.l$VISIT == "0"]))[[1]])
+
+# V1
+tabDescrBase[which(tabDescrBase$Characteristics == "Hours of physical activity per week"),3] <- paste0(round(median(orclu.l$physical.activity[orclu.l$VISIT == "1"], na.rm = TRUE),2), " (", quantile(orclu.l$physical.activity[orclu.l$VISIT == "1"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$physical.activity[orclu.l$VISIT == "1"], na.rm = TRUE)[[4]], "); ", "N=",table(is.na(orclu.l$physical.activity[orclu.l$VISIT == "1"]))[[1]])
+
+# V2
+tabDescrBase[which(tabDescrBase$Characteristics == "Hours of physical activity per week"),4] <- paste0(round(median(orclu.l$physical.activity[orclu.l$VISIT == "2"], na.rm = TRUE),2), " (", quantile(orclu.l$physical.activity[orclu.l$VISIT == "2"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$physical.activity[orclu.l$VISIT == "2"], na.rm = TRUE)[[4]], "); ", "N=",table(is.na(orclu.l$physical.activity[orclu.l$VISIT == "2"]))[[1]])
+
+
+# table
+ft.base <- tabDescrBase %>% 
+    flextable() %>%
+    add_header_row(values = c("","Mean (SD)/ N (%)", "P-Value"),
+  colwidths = c(1,3,1)) %>%
+    align(i = 1, part = "header", align = "center") %>%
+    footnote(i = which(tabDescrBase$Characteristics == "Hours of physical activity per week"), j = 1, value = as_paragraph(c("Median (Q1; Q3) and Kruskal-Wallis Test")), ref_symbols = "a")
+
+ft.base
+
+
+write.table(x = tabDescrBase, file = "Results/RQ2/Descriptive/Characteristics.csv", sep = ";")
+
+```
+
+
+### Sleep
+
+```{r, echo = FALSE}
+tab_Sleep <- table_nums(name = "Sleep", 
+                        caption = "Descriptive Statistics of Sleep Questions - All participants")
+```
+
+`r table_nums('Sleep')`
+```{r description sleep by visit}
+
+# change VISIT variable from numeric to factor variable
+orclu.l$VISIT <- factor(orclu.l$VISIT)
+
+
+varsleep <- c("SLEEP_TIMETOSLEEP", "SLEEP_EFFICIENCY", "SLEEP_EFFICIENCY.cat",
+              "SLEEP_ACTUALHOURS", "SLEEP_ACTUALHOURS.cat",
+              "SLEEP_PROBLEMS_TIME", "SLEEP_PROBLEMS_WAKINGUP",
+              "SLEEP_PROBLEMS_BREATHING", "SLEEP_PROBLEMS_COUGH_SNORE",
+              "SLEEP_PROBLEMS_FEELING_HOT", "SLEEP_PROBLEMS_BAD_DREAMS", "SLEEP_PROBLEMS_PAIN",
+              "SLEEP_TROUBLE_STAYINGAWAKE", 
+              "SLEEP_LACKING_ENTHUSIASM",
+              "SLEEP_DISTURBANCE.cat", "DAYTIME_DYSFUNCTION.cat", "SLEEP_LATENCY.cat",
+              "PSQI_score", "PSQI_score.cat")
+
+namessleep <- c("Time to sleep in minutes", "Sleep efficiency", "Sleep efficiency (cat.)",
+                "Actual hours of sleep", "Actual hours of sleep (cat.)",
+                "Cannot sleep within 30 minutes", "Wake-up in the middle of the night or early morning",
+                "Cannot breathe comfortably", "Cough or snore loudly",
+                "Feel too hot", "Have bad dreams", "Have pains",
+                "Staying awake while driving, eating meals, or engaging in social activity",
+                "Keep up enthusiasm to get things done",
+                "Sleep disturbance (cat.)", "Daystime dysfunction (cat.)", "Sleep latency (cat.)",
+                "PSQI score", "PSQI score cat.")
+
+
+# create descriptive table
+sleep.tab.l <- descrByCatTabPub(varVec = varsleep, nameVec = namessleep, database = orclu.l, catVar = "VISIT", contTest = rep("kruskal", length(varsleep)), print = FALSE, addN = TRUE)
+
+
+
+# creating variable description names
+varCol.l <- row.names(sleep.tab.l)
+varCol.l <- gsub("[.][0-9]*$", "", varCol.l)
+varCol.l <- str_replace_all(varCol.l, pattern = "[.]", replacement = " ")
+varCol.l <- gsub("X", "", varCol.l)
+
+tabSleep.l <- tibble("Characteristics" = varCol.l , "Visit 0" = sleep.tab.l[,1], "Visit 1" = sleep.tab.l[,2], "Visit 2" = sleep.tab.l[,3], " " = sleep.tab.l[,4])
+
+# adding extra line in table for question 8.5
+tabSleep.l <- rbind(tabSleep.l[c(1:20),],c("During the past month, how often have you had trouble sleeping because you", NA, NA, NA, NA), tabSleep.l[c(21:dim(tabSleep.l)[[1]]),])
+
+ft.l <- tabSleep.l %>% 
+    flextable() %>%
+    # adding extra header line
+    add_header_row(values = c("", "Mean (SD)/ N (%)", "P-Value"),colwidths = c(1, 3, 1)) %>%
+    align(i = 1, part = "header", align = "center") 
+
+# print table
+ft.l
+
+write.table(x = tabSleep.l, file = "Results/RQ2/Descriptive/Sleep.csv", sep = ";", row.names = FALSE)
+
+```
+
+
+### Psychological Scales
+
+#### Depression 
+
+```{r, echo = FALSE}
+tab_CESD <- table_nums(name = "MINI",  
+                        caption = "Descriptive Statistics of Depression using Mini International Neuropsychiatric Interview - All participants")
+```
+
+`r table_nums('MINI')`
+```{R description MINI_Dep scale}
+
+# variables and names to be used in the descriptive table
+varCESD <- c("minia3a_adu_q_2", "minia3f_adu_q_2", "minia1_adu_q_2", "minia3b_adu_q_2", "minio3a_adu_q_2", "minio1a_adu_q_2", "minio3e_adu_q_2", "MDD")
+
+namesCESD <- c("did your appetite change noticeably, or did your weight increase or decrease without this being intended?", "was it difficult to concentrate or make decisions almost every day?", "felt low or depressed for much of the day, every day?", "have you had problems sleeping almost every night?", "you felt restless, jittery or nervous?", " have you been worrying excessively and worrying about multiple problems of every day life, at work, at home, in your immediate environment?", "you were particularly irritable?", "Major depressive disorder (MDD)")
+
+
+# create descriptive table
+CESD.tab.l <- descrByCatTabPub(varVec = varCESD, nameVec = namesCESD, database = orclu.l, catVar = "VISIT", contTest = rep("kruskal", length(varCESD)), print = FALSE, addN = TRUE)
+
+
+
+# creating variable description names
+varCol.CESD <- row.names(CESD.tab.l)
+varCol.CESD <- gsub("[.][0-9]*$", "", varCol.CESD)
+varCol.CESD <- str_replace_all(varCol.CESD, pattern = "[.]", replacement = " ")
+
+
+tabDescr.CESD <- tibble("Question" = varCol.CESD , "Visit 0" = CESD.tab.l[,1], "Visit 1" = CESD.tab.l[,2], "Visit 2" = CESD.tab.l[,3], " " = CESD.tab.l[,4])
+
+# adding extra line in table for question 1.1
+tabDescr.CESD <- rbind(c("In the last 14 days did it often happen that", NA, NA, NA, NA), tabDescr.CESD)
+
+
+# create table to print
+ft.CESD <- tabDescr.CESD %>% 
+    flextable() %>%
+    add_header_row(values = c("", "N (%)", "P-Value"),
+  colwidths = c(1, 3, 1)) %>%
+     align(i = 1, part = "header", align = "center")
+
+
+# print table
+ft.CESD
+
+write.table(x = tabDescr.CESD, file = "Results/RQ2/Descriptive/CESD.csv", sep = ";")
+
+```
+
+
+
+
+
+#### Anxiety
+
+```{r, echo = FALSE}
+tab_GAD7 <- table_nums(name = "GAD7", 
+                        caption = "Descriptive Statistics of Anxiety - All participants")
+```
+
+`r table_nums('GAD7')`
+```{R description Anxiety}
+# variables and names to be used in the descriptive table
+varGAD <- c("minio3a_adu_q_2", "minio1a_adu_q_2", "minio3e_adu_q_2")
+
+namesGAD <- c("you felt restless, jittery or nervous?", "have you been worrying excessively and worrying about multiple problems of every day life, at work, at home, in your immediate environment?", "you were particularly irritable?")
+
+
+# create descriptive table
+GAD.tab.l <- descrByCatTabPub(varVec = varGAD, nameVec = namesGAD, database = orclu.l, catVar = "VISIT", contTest = rep("kruskal", length(varGAD)), print = FALSE, addN = TRUE)
+
+
+
+# creating variable description names
+varCol.GAD <- row.names(GAD.tab.l)
+varCol.GAD <- gsub("[.][0-9]*$", "", varCol.GAD)
+varCol.GAD <- str_replace_all(varCol.GAD, pattern = "[.]", replacement = " ")
+
+
+tabDescr.GAD <- tibble("Question" = varCol.GAD , "Visit 0" = GAD.tab.l[,1], "Visit 1" = GAD.tab.l[,2], "Visit 2" = GAD.tab.l[,3], " " = GAD.tab.l[,4])
+
+# adding extra line in table for question 1.1
+tabDescr.GAD <- rbind(c("In the last 14 days (did it often happen that)", NA, NA, NA, NA), tabDescr.GAD)
+
+
+# create flextable
+ft.GAD <- tabDescr.GAD %>% 
+    flextable() %>%
+    add_header_row(values = c("", "N (%)", "P-Value"),
+  colwidths = c(1, 3, 1)) %>%
+    align(i = 1, part = "header", align = "center")
+    
+
+
+# print table
+ft.GAD
+
+
+write.table(x = tabDescr.GAD, file = "Results/RQ2/Descriptive/GAD.csv", sep = ";")
+
+```
+
+
+
+
+
+
+#### Loneliness
+
+```{r, echo = FALSE}
+tab_UCLA <- table_nums(name = "UCLA", 
+                        caption = "Descriptive Statistics of Loneliness - All participants")
+```
+
+`r table_nums('UCLA')`
+```{R description Loneliness}
+# variables and names to be used in the descriptive table
+varUCLA <- c("isolation_adu_q_2_c", "isolation_adu_q_2_a", "isolation_adu_q_2_b", "UCLA_LONELINESS_SCALE_UCLA")
+
+namesUCLA <- c("alone?", "excluded?", "isolated from others? ", "UCLA score")
+
+
+# create descriptive table
+UCLA.tab.l <- descrByCatTabPub(varVec = varUCLA, nameVec = namesUCLA, database = orclu.l, catVar = "VISIT", contTest = rep("kruskal", length(varUCLA)), print = FALSE, addN = TRUE)
+
+
+
+# creating variable description names
+varCol.UCLA <- row.names(UCLA.tab.l)
+varCol.UCLA <- gsub("[.][0-9]*$", "", varCol.UCLA)
+varCol.UCLA <- str_replace_all(varCol.UCLA, pattern = "[.]", replacement = " ")
+
+
+tabDescr.UCLA <- tibble("Question" = varCol.UCLA , "Visit 0" = UCLA.tab.l[,1], "Visit 1" = UCLA.tab.l[,2], "Visit 2" = UCLA.tab.l[,3], " " = UCLA.tab.l[,4])
+
+# adding extra line in table for question 1.1
+tabDescr.UCLA <- rbind(c("In the last 14 days how often do you feel", NA, NA, NA, NA), tabDescr.UCLA)
+
+
+# change to median and IQR for score
+# V0
+tabDescr.UCLA[which(tabDescr.UCLA$Question == "UCLA score"),2] <- paste0(round(median(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "0"], na.rm = TRUE),2), " (", quantile(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "0"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "0"], na.rm = TRUE)[[4]], "); ", "N=",table(is.na(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "0"]))[[1]])
+
+# V1
+tabDescr.UCLA[which(tabDescr.UCLA$Question == "UCLA score"),3] <- paste0(round(median(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "1"], na.rm = TRUE),2), " (", quantile(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "1"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "1"], na.rm = TRUE)[[4]], "); ", "N=",table(is.na(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "1"]))[[1]])
+
+# V2
+tabDescr.UCLA[which(tabDescr.UCLA$Question == "UCLA score"),4] <- paste0(round(median(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "2"], na.rm = TRUE),2), " (", quantile(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "2"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "2"], na.rm = TRUE)[[4]], "); ", "N=",table(is.na(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "2"]))[[1]])
+
+
+
+# create flextable
+ft.UCLA <- tabDescr.UCLA %>% 
+    flextable() %>%
+    add_header_row(values = c("", "N (%)", "P-Value"),
+  colwidths = c(1, 3, 1)) %>%
+    align(i = 1, part = "header", align = "center") %>%
+    footnote(i = which(tabDescr.UCLA$Question == "UCLA score"), j = 1, value = as_paragraph(c("Median (Q1; Q3) and Kruskal-Wallis Test")), ref_symbols = "a")
+
+
+# print table
+ft.UCLA
+
+write.table(x = tabDescr.UCLA, file = "Results/RQ2/Descriptive/UCLA.csv", sep = ";")
+
+```
+
+
+
+
+
+## Mediation Analysis
+```{r function for mediation analysis}
+
+fun_med <- function(indepVar, medVar, indepName, medName, nMed = 1){
+    
+    
+    expData <- neImpute(as.formula(paste("nbCovInfections ~", indepVar, "+", medVar,"+ DEMOGRAPHICS_45 + DEMOGRAPHICS_46")), data = orclu.v2, family = poisson, nMed = nMed)
+    
+    
+    neMod <- medflex::neModel(as.formula(paste("nbCovInfections ~ ", colnames(expData)[2], "+" ,colnames(expData)[3], "+ DEMOGRAPHICS_45 + DEMOGRAPHICS_46")), family = poisson, expData = expData, se = "boot", nboot = 1000, parallel = "multicore", ncpus = detectCores())
+    
+    saveRDS(neMod, file=paste0("Results/RQ2/Mediation/neMod_",indepName, "_", medName,".RData"))
+    
+    
+    return(neMod)
+
+}
+```
+
+
+```{r function to put results of mediation into tables}
+fig_fun <- function(neMod, indepVar, indepName, medName){
+
+    med <- data.frame(summary(neMod)$coefficients)
+    med <- round(med, digits = 3)
+    
+    if(is.factor(orclu.v2[, indepVar])){
+            catg <- length(levels(orclu.v2[, indepVar]))-1
+    }else{
+        catg <- 1
+    }
+
+    
+    med <- data.frame("Variables" = c("Intercept", paste(indepName, " - direct effect", 1:catg), paste(indepName, " - indirect effect", 1:catg), "Sex - Male", "Age"), med)
+    
+    colnames(med) <- c("Variables", "Estimate", "Std. Error", "z-Value", "p-Value")
+    
+        
+    # save table
+    write.table(x = med, file = paste0("Results/RQ2/Mediation/RQ2_", indepName, "_", medName,".csv"), sep = ";", row.names = FALSE)
+    
+    # create flextable
+    tabmed <- med %>% flextable() %>%
+        add_footer_lines(paste("Observations used = ", dim(neMod$neModelFit$model)[1]/length(levels(orclu.v2[, indepVar]))))
+    
+
+    return(tabmed)
+}
+
+```
+
+
+```{r function to put ANOVA results in table}
+
+tabAOV <- function(neMod, indepName, medName){
+   taov <- Anova(neMod) %>% 
+    round(digits = 3)  %>%
+    rownames_to_column("Effects") 
+
+    taov[, "Effects"] <- c(paste(indepName, "- direct effect"), paste(indepName, "- indirect effect"), "Sex", "Age")
+
+    # save table
+    write.table(x = taov, file = paste0("Results/RQ2/Mediation/RQ2_AOV_", indepName, "_", medName,".csv"), sep = ";", row.names = FALSE)
+
+    taov %>% 
+        flextable()
+} 
+```
+
+### Sleep Duration  
+
+```{r fun_med function for independent variable Sleep duration}
+# this part only needs to be run once; after that, it can be commented and the saved RData files in  "Results/RQ2/Mediation/" can be read (next r chunk)
+
+ neMod_sleepDurMDD <- fun_med(indepVar = "SLEEP_ACTUALHOURS.cat", medVar = "MDD", indepName = "sleepDur", medName = "MDD")
+
+neMod_sleepDurLonely <- fun_med(indepVar = "SLEEP_ACTUALHOURS.cat", medVar = "UCLA_LONELINESS_SCALE_UCLA", indepName = "sleepDur", medName = "Loneliness")
+
+```
+
+```{r read mediation models- sleep duration}
+neMod_sleepDurMDD <- readRDS("Results/RQ2/Mediation/neMod_sleepDur_MDD.RData")
+neMod_sleepDurLonely <- readRDS("Results/RQ2/Mediation/neMod_sleepDur_Loneliness.RData")
+```
+
+
+
+#### MDD
+```{r, echo = FALSE}
+tab_sleepdurMDD <- table_nums(name = "sleepDurMDD", 
+                        caption = "Results of Mediation Analysis with Sleep Duration as Independent Variable, MDD as Mediator and Age and Sex as confounders")
+```
+
+`r table_nums('sleepDurMDD')`
+```{r fig_fun for sleepDurMDD}
+fig_fun(neMod = neMod_sleepDurMDD, indepVar = "SLEEP_ACTUALHOURS.cat", indepName = "SleepDuration", medName = "MDD")
+```
+
+
+
+```{r, echo = FALSE}
+tab_sleepdurMDDAOV <- table_nums(name = "sleepDurMDDAOV", 
+                        caption = "ANOVA - MDD")
+```
+
+`r table_nums('sleepDurMDDAOV')`
+```{r anova sleepDurMDD}     
+tabAOV(neMod_sleepDurMDD, indepName = "SleepDuration", medName = "MDD")
+
+```
+
+
+
+```{r, echo = FALSE}
+tab_sleepdurMDDNE <- table_nums(name = "sleepDurMDDNE", 
+                        caption = "Natural direct, indirect and total effect - MDD")
+```
+
+`r table_nums('sleepDurMDDNE')`
+```{r NE sleepDurMDD}
+# Summary of natural effects
+effects_sleepDurMDD <- summary(neEffdecomp(neMod_sleepDurMDD))$coefficients
+    
+effects_sleepDurMDD %>% 
+    data.frame() %>%
+    round(digits = 3) %>%
+    rownames_to_column("Effects") %>% 
+    flextable()
+    
+write.table(x = effects_sleepDurMDD, file = "Results/RQ2/Mediation/Effects_sleepDurMDD.csv", sep = ";", row.names = TRUE)
+```
+   
+
+
+```{r, echo = FALSE}
+fig_sleepdurMDD <- fig_nums(name = "sleepDurMDDEff", 
+                        caption = "Direct and Indirect Effects showing log OR and OR - MDD")
+```
+
+`r fig_nums('sleepDurMDDEff')`
+```{r plots effect sleepDurMDD}
+# plot direct and indirect effect
+plot(neMod_sleepDurMDD, xlab = "log odds ratio")
+plot(neMod_sleepDurMDD, xlab = "odds ratio", transf = exp)
+
+```
+
+
+
+#### Loneliness
+
+```{r, echo = FALSE}
+tab_sleepdurLoneliness <- table_nums(name = "sleepDurLoneliness", 
+                        caption = "Results of Mediation Analysis with Sleep Duration as Independent Variable, Loneliness as Mediator and Age and Sex as confounders")
+```
+
+`r table_nums('sleepDurLoneliness')`
+```{r fig_fun for sleepDurLoneliness}
+fig_fun(neMod = neMod_sleepDurLonely, indepVar = "SLEEP_ACTUALHOURS.cat", indepName = "SleepDuration", medName = "Loneliness")
+```
+
+
+
+```{r, echo = FALSE}
+tab_sleepdurLonelinessAOV <- table_nums(name = "sleepDurLonelinessAOV", 
+                        caption = "ANOVA - Loneliness")
+```
+
+`r table_nums('sleepDurLonelinessAOV')`
+```{r anova sleepDurLoneliness}     
+tabAOV(neMod_sleepDurLonely, indepName = "SleepDuration", medName = "Loneliness")
+
+```
+
+
+
+```{r, echo = FALSE}
+tab_sleepdurLonelinessNE <- table_nums(name = "sleepDurLonelinessNE", 
+                        caption = "Natural direct, indirect and total effect - Loneliness")
+```
+
+`r table_nums('sleepDurLonelinessNE')`
+```{r NE sleepDurLoneliness}
+# Summary of natural effects
+effects_sleepDurLoneliness <- summary(neEffdecomp(neMod_sleepDurLonely))$coefficients
+    
+effects_sleepDurLoneliness %>% 
+    data.frame() %>%
+    round(digits = 3) %>%
+    rownames_to_column("Effects") %>% 
+    flextable()
+    
+write.table(x = effects_sleepDurLoneliness, file = "Results/RQ2/Mediation/Effects_sleepDurLoneliness.csv", sep = ";", row.names = TRUE)
+```
+   
+
+
+```{r, echo = FALSE}
+fig_sleepdurLoneliness <- fig_nums(name = "sleepDurLonelinessEff", 
+                        caption = "Direct and Indirect Effects showing log OR and OR - Loneliness")
+```
+
+`r fig_nums('sleepDurLonelinessEff')`
+```{r plots effect sleepDurLoneliness}
+# plot direct and indirect effect
+plot(neMod_sleepDurLonely, xlab = "log odds ratio")
+plot(neMod_sleepDurLonely, xlab = "odds ratio", transf = exp)
+
+```
+
+
+
+### Sleep Efficacy
+
+```{r fun_med function for independent variable Sleep efficacy}
+# this part only needs to be run once; after that, it can be commented and the saved RData files in  "Results/RQ2/Mediation/" can be read (next r chunk)
+
+
+ neMod_sleepEffMDD <- fun_med(indepVar = "SLEEP_EFFICIENCY.cat", medVar = "MDD", indepName = "sleepEff", medName = "MDD")
+
+neMod_sleepEffLonely <- fun_med(indepVar = "SLEEP_EFFICIENCY.cat", medVar = "UCLA_LONELINESS_SCALE_UCLA", indepName = "sleepEff", medName = "Loneliness")
+```
+
+```{r read mediation models- sleep efficacy}
+neMod_sleepEffMDD <- readRDS("Results/RQ2/Mediation/neMod_sleepEff_MDD.RData")
+neMod_sleepEffLonely <- readRDS("Results/RQ2/Mediation/neMod_sleepEff_Loneliness.RData")
+```
+
+
+#### MDD
+```{r, echo = FALSE}
+tab_sleepEffMDD <- table_nums(name = "sleepEffMDD", 
+                        caption = "Results of Mediation Analysis with Sleep Efficacy as Independent Variable, MDD as Mediator and Age and Sex as confounders")
+```
+
+`r table_nums('sleepEffMDD')`
+```{r fig_fun for sleepEffMDD}
+fig_fun(neMod = neMod_sleepEffMDD, indepVar = "SLEEP_EFFICIENCY.cat", indepName = "sleepEfficiency", medName = "MDD")
+```
+
+
+
+```{r, echo = FALSE}
+tab_sleepEffMDDAOV <- table_nums(name = "sleepEffMDDAOV", 
+                        caption = "ANOVA - MDD")
+```
+
+`r table_nums('sleepEffMDDAOV')`
+```{r anova sleepEffMDD}     
+tabAOV(neMod_sleepEffMDD, indepName = "sleepEfficiency", medName = "MDD")
+
+```
+
+
+
+```{r, echo = FALSE}
+tab_sleepEffMDDNE <- table_nums(name = "sleepEffMDDNE", 
+                        caption = "Natural direct, indirect and total effect - MDD")
+```
+
+`r table_nums('sleepEffMDDNE')`
+```{r NE sleepEffMDD}
+# Summary of natural effects
+effects_sleepEffMDD <- summary(neEffdecomp(neMod_sleepEffMDD))$coefficients
+    
+effects_sleepEffMDD %>% 
+    data.frame() %>%
+    round(digits = 3) %>%
+    rownames_to_column("Effects") %>% 
+    flextable()
+    
+write.table(x = effects_sleepEffMDD, file = "Results/RQ2/Mediation/Effects_sleepEffMDD.csv", sep = ";", row.names = TRUE)
+```
+   
+
+
+```{r, echo = FALSE}
+fig_sleepEffMDD <- fig_nums(name = "sleepEffMDDEff", 
+                        caption = "Direct and Indirect Effects showing log OR and OR - MDD")
+```
+
+`r fig_nums('sleepEffMDDEff')`
+```{r plots effect sleepEffMDD}
+# plot direct and indirect effect
+plot(neMod_sleepEffMDD, xlab = "log odds ratio")
+plot(neMod_sleepEffMDD, xlab = "odds ratio", transf = exp)
+```
+
+
+
+#### Loneliness
+
+```{r, echo = FALSE}
+tab_sleepEffLoneliness <- table_nums(name = "sleepEffLoneliness", 
+                        caption = "Results of Mediation Analysis with Sleep Duration as Independent Variable, Loneliness as Mediator and Age and Sex as confounders")
+```
+
+`r table_nums('sleepEffLoneliness')`
+```{r fig_fun for sleepEffLoneliness}
+fig_fun(neMod = neMod_sleepEffLonely, indepVar = "SLEEP_EFFICIENCY.cat", indepName = "SleepEfficiency", medName = "Loneliness")
+```
+
+
+
+```{r, echo = FALSE}
+tab_sleepEffLonelinessAOV <- table_nums(name = "sleepEffLonelinessAOV", 
+                        caption = "ANOVA - Loneliness")
+```
+
+`r table_nums('sleepEffLonelinessAOV')`
+```{r anova sleepEffLoneliness}     
+tabAOV(neMod_sleepEffLonely, indepName = "SleepEfficiency", medName = "Loneliness")
+
+```
+
+
+
+```{r, echo = FALSE}
+tab_sleepEffLonelinessNE <- table_nums(name = "sleepEffLonelinessNE", 
+                        caption = "Natural direct, indirect and total effect - Loneliness")
+```
+
+`r table_nums('sleepEffLonelinessNE')`
+```{r NE sleepEffLoneliness}
+# Summary of natural effects
+effects_sleepEffLoneliness <- summary(neEffdecomp(neMod_sleepEffLonely))$coefficients
+    
+effects_sleepEffLoneliness %>% 
+    data.frame() %>%
+    round(digits = 3) %>%
+    rownames_to_column("Effects") %>% 
+    flextable()
+    
+write.table(x = effects_sleepEffLoneliness, file = "Results/RQ2/Mediation/Effects_sleepEffLoneliness.csv", sep = ";", row.names = TRUE)
+```
+   
+
+
+```{r, echo = FALSE}
+fig_sleepEffLoneliness <- fig_nums(name = "sleepEffLonelinessEff", 
+                        caption = "Direct and Indirect Effects showing log OR and OR - Loneliness")
+```
+
+`r fig_nums('sleepEffLonelinessEff')`
+```{r plots effect sleepEffLoneliness}
+# plot direct and indirect effect
+plot(neMod_sleepEffLonely, xlab = "log odds ratio")
+plot(neMod_sleepEffLonely, xlab = "odds ratio", transf = exp)
+
+```
+
+
+### Sleep Disturbance
+
+```{r fun_med function for independent variable Sleep disturbance}
+# this part only needs to be run once; after that, it can be commented and the saved RData files in  "Results/RQ2/Mediation/" can be read (next r chunk)
+
+
+neMod_sleepDistMDD <- fun_med(indepVar = "SLEEP_DISTURBANCE.cat", medVar = "MDD", indepName = "sleepDist", medName = "MDD")
+
+neMod_sleepDistLonely <- fun_med(indepVar = "SLEEP_DISTURBANCE.cat", medVar = "UCLA_LONELINESS_SCALE_UCLA", indepName = "sleepDist", medName = "Loneliness")
+
+```
+
+```{r read mediation models- sleep disturbance}
+neMod_sleepDistMDD <- readRDS("Results/RQ2/Mediation/neMod_sleepDist_MDD.RData")
+neMod_sleepDistLonely <- readRDS("Results/RQ2/Mediation/neMod_sleepDist_Loneliness.RData")
+```
+
+
+#### MDD
+```{r, echo = FALSE}
+tab_sleepDistMDD <- table_nums(name = "sleepDistMDD", 
+                        caption = "Results of Mediation Analysis with Sleep Disturbance as Independent Variable, MDD as Mediator and Age and Sex as confounders")
+```
+
+`r table_nums('sleepDistMDD')`
+```{r fig_fun for sleepDistMDD}
+fig_fun(neMod = neMod_sleepDistMDD, indepVar = "SLEEP_DISTURBANCE.cat", indepName = "sleepDisturbance", medName = "MDD")
+```
+
+
+
+```{r, echo = FALSE}
+tab_sleepDistMDDAOV <- table_nums(name = "sleepDistMDDAOV", 
+                        caption = "ANOVA - MDD")
+```
+
+`r table_nums('sleepDistMDDAOV')`
+```{r anova sleepDistMDD}     
+tabAOV(neMod_sleepDistMDD, indepName = "sleepDisturbance", medName = "MDD")
+```
+
+
+
+```{r, echo = FALSE}
+tab_sleepDistMDDNE <- table_nums(name = "sleepDistMDDNE", 
+                        caption = "Natural direct, indirect and total effect - MDD")
+```
+
+`r table_nums('sleepDistMDDNE')`
+```{r NE sleepDistMDD}
+# Summary of natural effects
+effects_sleepDistMDD <- summary(neEffdecomp(neMod_sleepDistMDD))$coefficients
+    
+effects_sleepDistMDD %>% 
+    data.frame() %>%
+    round(digits = 3) %>%
+    rownames_to_column("Effects") %>% 
+    flextable()
+    
+write.table(x = effects_sleepDistMDD, file = "Results/RQ2/Mediation/Effects_sleepDistMDD.csv", sep = ";", row.names = TRUE)
+```
+   
+
+
+```{r, echo = FALSE}
+fig_sleepDistMDD <- fig_nums(name = "sleepDistMDDEff", 
+                        caption = "Direct and Indirect Effects showing log OR and OR - MDD")
+```
+
+`r fig_nums('sleepDistMDDEff')`
+```{r plots effect sleepDistMDD}
+# plot direct and indirect effect
+plot(neMod_sleepDistMDD, xlab = "log odds ratio")
+plot(neMod_sleepDistMDD, xlab = "odds ratio", transf = exp)
+```
+
+
+
+
+
+#### Loneliness
+
+```{r, echo = FALSE}
+tab_sleepDistLoneliness <- table_nums(name = "sleepDistLoneliness", 
+                        caption = "Results of Mediation Analysis with Sleep Duration as Independent Variable, Loneliness as Mediator and Age and Sex as confounders")
+```
+
+`r table_nums('sleepDistLoneliness')`
+```{r fig_fun for sleepDistLoneliness}
+fig_fun(neMod = neMod_sleepDistLonely, indepVar = "SLEEP_DISTURBANCE.cat", indepName = "sleepDisturbance", medName = "Loneliness")
+```
+
+
+
+```{r, echo = FALSE}
+tab_sleepDistLonelinessAOV <- table_nums(name = "sleepDistLonelinessAOV", 
+                        caption = "ANOVA - Loneliness")
+```
+
+`r table_nums('sleepDistLonelinessAOV')`
+```{r anova sleepDistLoneliness}     
+tabAOV(neMod_sleepDistLonely, indepName = "sleepDisturbance", medName = "Loneliness")
+
+```
+
+
+
+```{r, echo = FALSE}
+tab_sleepDistLonelinessNE <- table_nums(name = "sleepDistLonelinessNE", 
+                        caption = "Natural direct, indirect and total effect - Loneliness")
+```
+
+`r table_nums('sleepDistLonelinessNE')`
+```{r NE sleepDistLoneliness}
+# Summary of natural effects
+effects_sleepDistLoneliness <- summary(neEffdecomp(neMod_sleepDistLonely))$coefficients
+    
+effects_sleepDistLoneliness %>% 
+    data.frame() %>%
+    round(digits = 3) %>%
+    rownames_to_column("Effects") %>% 
+    flextable()
+    
+write.table(x = effects_sleepDistLoneliness, file = "Results/RQ2/Mediation/Effects_sleepDistLoneliness.csv", sep = ";", row.names = TRUE)
+```
+   
+
+
+```{r, echo = FALSE}
+fig_sleepDistLoneliness <- fig_nums(name = "sleepDistLonelinessEff", 
+                        caption = "Direct and Indirect Effects showing log OR and OR - Loneliness")
+```
+
+`r fig_nums('sleepDistLonelinessEff')`
+```{r plots effect sleepDistLoneliness}
+# plot direct and indirect effect
+plot(neMod_sleepDistLonely, xlab = "log odds ratio")
+plot(neMod_sleepDistLonely, xlab = "odds ratio", transf = exp)
+
+```
+
+
+### Daytime dysfunction
+```{r fun_med function for independent variable daytime dysfunction}
+# this part only needs to be run once; after that, it can be commented and the saved RData files in  "Results/RQ2/Mediation/" can be read (next r chunk)
+
+neMod_dayDysMDD <- fun_med(indepVar = "DAYTIME_DYSFUNCTION.cat", medVar = "MDD", indepName = "DayDys", medName = "MDD")
+
+neMod_dayDysLonely <- fun_med(indepVar = "DAYTIME_DYSFUNCTION.cat", medVar = "UCLA_LONELINESS_SCALE_UCLA", indepName = "DayDys", medName = "Loneliness")
+```
+
+
+```{r read mediation models- daytime dysfunction}
+neMod_dayDysMDD <- readRDS("Results/RQ2/Mediation/neMod_dayDys_MDD.RData")
+neMod_dayDysLonely <- readRDS("Results/RQ2/Mediation/neMod_dayDys_Loneliness.RData")
+```
+
+#### MDD
+```{r, echo = FALSE}
+tab_dayDysMDD <- table_nums(name = "dayDysMDD", 
+                        caption = "Results of Mediation Analysis with Daytime Dysfunction as Independent Variable, MDD as Mediator and Age and Sex as confounders")
+```
+
+`r table_nums('dayDysMDD')`
+```{r fig_fun for dayDysMDD}
+fig_fun(neMod = neMod_dayDysMDD, indepVar = "DAYTIME_DYSFUNCTION.cat", indepName = "daytimeDysfunction", medName = "MDD")
+```
+
+
+
+```{r, echo = FALSE}
+tab_dayDysMDDAOV <- table_nums(name = "dayDysMDDAOV", 
+                        caption = "ANOVA - MDD")
+```
+
+`r table_nums('dayDysMDDAOV')`
+```{r anova dayDysMDD}     
+tabAOV(neMod_dayDysMDD, indepName = "daytimeDysfunction", medName = "MDD")
+```
+
+
+
+```{r, echo = FALSE}
+tab_dayDysMDDNE <- table_nums(name = "dayDysMDDNE", 
+                        caption = "Natural direct, indirect and total effect - MDD")
+```
+
+`r table_nums('dayDysMDDNE')`
+```{r NE dayDysMDD}
+# Summary of natural effects
+effects_dayDysMDD <- summary(neEffdecomp(neMod_dayDysMDD))$coefficients
+    
+effects_dayDysMDD %>% 
+    data.frame() %>%
+    round(digits = 3) %>%
+    rownames_to_column("Effects") %>% 
+    flextable()
+    
+write.table(x = effects_dayDysMDD, file = "Results/RQ2/Mediation/Effects_dayDysMDD.csv", sep = ";", row.names = TRUE)
+```
+   
+
+
+```{r, echo = FALSE}
+fig_dayDysMDD <- fig_nums(name = "dayDysMDDEff", 
+                        caption = "Direct and Indirect Effects showing log OR and OR - MDD")
+```
+
+`r fig_nums('dayDysMDDEff')`
+```{r plots effect dayDysMDD}
+# plot direct and indirect effect
+plot(neMod_dayDysMDD, xlab = "log odds ratio")
+plot(neMod_dayDysMDD, xlab = "odds ratio", transf = exp)
+```
+
+
+#### Loneliness
+
+```{r, echo = FALSE}
+tab_dayDysLoneliness <- table_nums(name = "dayDysLoneliness", 
+                        caption = "Results of Mediation Analysis with Sleep Duration as Independent Variable, Loneliness as Mediator and Age and Sex as confounders")
+```
+
+`r table_nums('dayDysLoneliness')`
+```{r fig_fun for dayDysLoneliness}
+fig_fun(neMod = neMod_dayDysLonely, indepVar = "DAYTIME_DYSFUNCTION.cat", indepName = "daytimeDysfunction", medName = "Loneliness")
+```
+
+
+
+```{r, echo = FALSE}
+tab_dayDysLonelinessAOV <- table_nums(name = "dayDysLonelinessAOV", 
+                        caption = "ANOVA - Loneliness")
+```
+
+`r table_nums('dayDysLonelinessAOV')`
+```{r anova dayDysLoneliness}     
+tabAOV(neMod_dayDysLonely, indepName = "daytimeDysfunction", medName = "Loneliness")
+
+```
+
+
+
+```{r, echo = FALSE}
+tab_dayDysLonelinessNE <- table_nums(name = "dayDysLonelinessNE", 
+                        caption = "Natural direct, indirect and total effect - Loneliness")
+```
+
+`r table_nums('dayDysLonelinessNE')`
+```{r NE dayDysLoneliness}
+# Summary of natural effects
+effects_dayDysLoneliness <- summary(neEffdecomp(neMod_dayDysLonely))$coefficients
+    
+effects_dayDysLoneliness %>% 
+    data.frame() %>%
+    round(digits = 3) %>%
+    rownames_to_column("Effects") %>% 
+    flextable()
+    
+write.table(x = effects_dayDysLoneliness, file = "Results/RQ2/Mediation/Effects_dayDysLoneliness.csv", sep = ";", row.names = TRUE)
+```
+   
+
+
+```{r, echo = FALSE}
+fig_dayDysLoneliness <- fig_nums(name = "dayDysLonelinessEff", 
+                        caption = "Direct and Indirect Effects showing log OR and OR - Loneliness")
+```
+
+`r fig_nums('dayDysLonelinessEff')`
+```{r plots effect dayDysLoneliness}
+# plot direct and indirect effect
+plot(neMod_dayDysLonely, xlab = "log odds ratio")
+plot(neMod_dayDysLonely, xlab = "odds ratio", transf = exp)
+
+```
+
+
+
+### Sleep Latency
+
+```{r fun_med function for independent variable sleep latency}
+# this part only needs to be run once; after that, it can be commented and the saved RData files in  "Results/RQ2/Mediation/" can be read (next r chunk)
+
+neMod_SleepLatMDD <- fun_med(indepVar = "SLEEP_LATENCY.cat", medVar = "MDD", indepName = "SleepLat", medName = "MDD")
+
+neMod_SleepLatLonely <- fun_med(indepVar = "SLEEP_LATENCY.cat", medVar = "UCLA_LONELINESS_SCALE_UCLA", indepName = "SleepLat", medName = "Loneliness")
+```
+
+```{r read mediation models - sleep latency}
+neMod_sleepLatMDD <- readRDS("Results/RQ2/Mediation/neMod_sleepLat_MDD.RData")
+neMod_sleepLatLonely <- readRDS("Results/RQ2/Mediation/neMod_SleepLat_Loneliness.RData")
+```
+
+
+#### MDD
+```{r, echo = FALSE}
+tab_sleepLatMDD <- table_nums(name = "sleepLatMDD", 
+                        caption = "Results of Mediation Analysis with Sleep Latency as Independent Variable, MDD as Mediator and Age and Sex as confounders")
+```
+
+`r table_nums('sleepLatMDD')`
+```{r fig_fun for sleepLatMDD}
+fig_fun(neMod = neMod_sleepLatMDD, indepVar = "SLEEP_LATENCY.cat", indepName = "sleepLatency", medName = "MDD")
+```
+
+
+
+```{r, echo = FALSE}
+tab_sleepLatMDDAOV <- table_nums(name = "sleepLatMDDAOV", 
+                        caption = "ANOVA - MDD")
+```
+
+`r table_nums('sleepLatMDDAOV')`
+```{r anova sleepLatMDD}     
+tabAOV(neMod_sleepLatMDD, indepName = "sleepLatency", medName = "MDD")
+```
+
+
+
+```{r, echo = FALSE}
+tab_sleepLatMDDNE <- table_nums(name = "sleepLatMDDNE", 
+                        caption = "Natural direct, indirect and total effect - MDD")
+```
+
+`r table_nums('sleepLatMDDNE')`
+```{r NE sleepLatMDD}
+# Summary of natural effects
+effects_sleepLatMDD <- summary(neEffdecomp(neMod_sleepLatMDD))$coefficients
+    
+effects_sleepLatMDD %>% 
+    data.frame() %>%
+    round(digits = 3) %>%
+    rownames_to_column("Effects") %>% 
+    flextable()
+    
+write.table(x = effects_sleepLatMDD, file = "Results/RQ2/Mediation/Effects_sleepLatMDD.csv", sep = ";", row.names = TRUE)
+```
+   
+
+
+```{r, echo = FALSE}
+fig_sleepLatMDD <- fig_nums(name = "sleepLatMDDEff", 
+                        caption = "Direct and Indirect Effects showing log OR and OR - MDD")
+```
+
+`r fig_nums('sleepLatMDDEff')`
+```{r plots effect sleepLatMDD}
+# plot direct and indirect effect
+plot(neMod_sleepLatMDD, xlab = "log odds ratio")
+plot(neMod_sleepLatMDD, xlab = "odds ratio", transf = exp)
+```
+
+
+#### Loneliness
+
+```{r, echo = FALSE}
+tab_sleepLatLoneliness <- table_nums(name = "sleepLatLoneliness", 
+                        caption = "Results of Mediation Analysis with Sleep Duration as Independent Variable, Loneliness as Mediator and Age and Sex as confounders")
+```
+
+`r table_nums('sleepLatLoneliness')`
+```{r fig_fun for sleepLatLoneliness}
+fig_fun(neMod = neMod_sleepLatLonely, indepVar = "SLEEP_LATENCY.cat", indepName = "sleepLatency", medName = "Loneliness")
+```
+
+
+
+```{r, echo = FALSE}
+tab_sleepLatLonelinessAOV <- table_nums(name = "sleepLatLonelinessAOV", 
+                        caption = "ANOVA - Loneliness")
+```
+
+`r table_nums('sleepLatLonelinessAOV')`
+```{r anova sleepLatLoneliness}     
+tabAOV(neMod_sleepLatLonely, indepName = "sleepLatency", medName = "Loneliness")
+
+```
+
+
+
+```{r, echo = FALSE}
+tab_sleepLatLonelinessNE <- table_nums(name = "sleepLatLonelinessNE", 
+                        caption = "Natural direct, indirect and total effect - Loneliness")
+```
+
+`r table_nums('sleepLatLonelinessNE')`
+```{r NE sleepLatLoneliness}
+# Summary of natural effects
+effects_sleepLatLoneliness <- summary(neEffdecomp(neMod_sleepLatLonely))$coefficients
+    
+effects_sleepLatLoneliness %>% 
+    data.frame() %>%
+    round(digits = 3) %>%
+    rownames_to_column("Effects") %>% 
+    flextable()
+    
+write.table(x = effects_sleepLatLoneliness, file = "Results/RQ2/Mediation/Effects_sleepLatLoneliness.csv", sep = ";", row.names = TRUE)
+```
+   
+
+
+```{r, echo = FALSE}
+fig_sleepLatLoneliness <- fig_nums(name = "sleepLatLonelinessEff", 
+                        caption = "Direct and Indirect Effects showing log OR and OR - Loneliness")
+```
+
+`r fig_nums('sleepLatLonelinessEff')`
+```{r plots effect sleepLatLoneliness}
+# plot direct and indirect effect
+plot(neMod_sleepLatLonely, xlab = "log odds ratio")
+plot(neMod_sleepLatLonely, xlab = "odds ratio", transf = exp)
+
+```
+
+
+### PSQI score
+
+```{r fun_med function for independent variable PSQI score}
+# this part only needs to be run once; after that, it can be commented and the saved RData files in  "Results/RQ2/Mediation/" can be read (next r chunk)
+
+
+neMod_psqiMDD <- fun_med(indepVar = "PSQI_score", medVar = "MDD", indepName = "psqi", medName = "MDD")
+
+neMod_psqiLonely <- fun_med(indepVar = "PSQI_score", medVar = "UCLA_LONELINESS_SCALE_UCLA", indepName = "psqi", medName = "Loneliness")
+```
+
+
+```{r read mediation models - PSQI score}
+neMod_psqiMDD <- readRDS("Results/RQ2/Mediation/neMod_psqi_MDD.RData")
+neMod_psqiLonely <- readRDS("Results/RQ2/Mediation/neMod_psqi_Loneliness.RData")
+```
+
+
+
+#### MDD
+```{r, echo = FALSE}
+tab_psqiMDD <- table_nums(name = "psqiMDD", 
+                        caption = "Results of Mediation Analysis with PSQI Score as Independent Variable, MDD as Mediator and Age and Sex as confounders")
+```
+
+`r table_nums('psqiMDD')`
+```{r fig_fun for psqiMDD}
+fig_fun(neMod = neMod_psqiMDD, indepVar = "PSQI_score", indepName = "PSQIScore", medName = "MDD")
+```
+
+
+
+```{r, echo = FALSE}
+tab_psqiMDDAOV <- table_nums(name = "psqiMDDAOV", 
+                        caption = "ANOVA - MDD")
+```
+
+`r table_nums('psqiMDDAOV')`
+```{r anova psqiMDD}     
+tabAOV(neMod_psqiMDD, indepName = "PSQIScore", medName = "MDD")
+```
+
+
+
+```{r, echo = FALSE}
+tab_psqiMDDNE <- table_nums(name = "psqiMDDNE", 
+                        caption = "Natural direct, indirect and total effect - MDD")
+```
+
+`r table_nums('psqiMDDNE')`
+```{r NE psqiMDD}
+# Summary of natural effects
+effects_psqiMDD <- summary(neEffdecomp(neMod_psqiMDD))$coefficients
+    
+effects_psqiMDD %>% 
+    data.frame() %>%
+    round(digits = 3) %>%
+    rownames_to_column("Effects") %>% 
+    flextable()
+    
+write.table(x = effects_psqiMDD, file = "Results/RQ2/Mediation/Effects_psqiMDD.csv", sep = ";", row.names = TRUE)
+```
+   
+
+
+```{r, echo = FALSE}
+fig_psqiMDD <- fig_nums(name = "psqiMDDEff", 
+                        caption = "Direct and Indirect Effects showing log OR and OR - MDD")
+```
+
+`r fig_nums('psqiMDDEff')`
+```{r plots effect psqiMDD}
+# plot direct and indirect effect
+plot(neMod_psqiMDD, xlab = "log odds ratio")
+plot(neMod_psqiMDD, xlab = "odds ratio", transf = exp)
+```
+
+
+
+#### Loneliness
+
+```{r, echo = FALSE}
+tab_psqiLoneliness <- table_nums(name = "psqiLoneliness", 
+                        caption = "Results of Mediation Analysis with Sleep Duration as Independent Variable, Loneliness as Mediator and Age and Sex as confounders")
+```
+
+`r table_nums('psqiLoneliness')`
+```{r fig_fun for psqiLoneliness}
+fig_fun(neMod = neMod_psqiLonely, indepVar = "PSQI_score", indepName = "PSQIScore", medName = "Loneliness")
+```
+
+
+
+```{r, echo = FALSE}
+tab_psqiLonelinessAOV <- table_nums(name = "psqiLonelinessAOV", 
+                        caption = "ANOVA - Loneliness")
+```
+
+`r table_nums('psqiLonelinessAOV')`
+```{r anova psqiLoneliness}     
+tabAOV(neMod_psqiLonely, indepName = "PSQIScore", medName = "Loneliness")
+
+```
+
+
+
+```{r, echo = FALSE}
+tab_psqiLonelinessNE <- table_nums(name = "psqiLonelinessNE", 
+                        caption = "Natural direct, indirect and total effect - Loneliness")
+```
+
+`r table_nums('psqiLonelinessNE')`
+```{r NE psqiLoneliness}
+# Summary of natural effects
+effects_psqiLoneliness <- summary(neEffdecomp(neMod_psqiLonely))$coefficients
+    
+effects_psqiLoneliness %>% 
+    data.frame() %>%
+    round(digits = 3) %>%
+    rownames_to_column("Effects") %>% 
+    flextable()
+    
+write.table(x = effects_psqiLoneliness, file = "Results/RQ2/Mediation/Effects_psqiLoneliness.csv", sep = ";", row.names = TRUE)
+```
+   
+
+
+```{r, echo = FALSE}
+fig_psqiLoneliness <- fig_nums(name = "psqiLonelinessEff", 
+                        caption = "Direct and Indirect Effects showing log OR and OR - Loneliness")
+```
+
+`r fig_nums('psqiLonelinessEff')`
+```{r plots effect psqiLoneliness}
+# plot direct and indirect effect
+plot(neMod_psqiLonely, xlab = "log odds ratio")
+plot(neMod_psqiLonely, xlab = "odds ratio", transf = exp)
+
+```
+
+
+
+## Poisson Regression
+### Separate models on sleep characteristics
+Poisson regression with sleep characteristics dependent on number of Covid-19 infections for participants at visit 2.
+```{r PR function}
+
+pr_function <- function(dep.var, dep.name){
+    pr <- glm(formula(paste0("nbCovInfections ~ ",dep.var, "+ DEMOGRAPHICS_45 + DEMOGRAPHICS_46")), data = orclu.v2, family = poisson)
+
+tab <- data.frame(summary(pr)$coefficients)
+tab <- round(tab, digits = 3)
+
+if(is.numeric(orclu.v2[,dep.var]) | is.integer(orclu.v2[,dep.var])){
+    tab <- data.frame("Variables" = c("Intercept", dep.name, "Sex - Male", "Age"), tab)
+}else if(is.factor(orclu.v2[,dep.var])){
+    tab <- data.frame("Variables" = c("Intercept", paste0(dep.name, " - ", levels(orclu.v2[, dep.var])[-1]), "Sex - Male", "Age"), tab)
+}
+
+
+colnames(tab) <- c("Variables", "Estimate", "Std. Error", "z-Value", "p-Value")
+
+# save table
+write.table(x = tab, file = paste0("Results/RQ2/Poisson/RQ21_", gsub(" ", "", dep.name), ".csv"), sep = ";", row.names = FALSE)
+
+tabp <- tab %>%
+    flextable() %>%
+    add_footer_lines(values = paste("Observations used = ", dim(pr$model)[1])) %>%
+    add_footer_lines(values = "Deviance residuals:") %>%
+    add_footer_lines(values = paste(c("Min.:", "1st Qu.:", "Median:", "Mean:", "3rd Qu.:", "Max.:"),round(summary(summary(pr)$deviance.resid),3))) %>%
+    add_footer_lines(values = "Goodness of fit test:") %>%
+    add_footer_lines(values = paste(c("res.deviance:", "df:", "p:"), round(with(pr, cbind(res.deviance = deviance, df = df.residual,
+  p = pchisq(deviance, df.residual, lower.tail=FALSE))),3)))
+
+return(tabp)
+
+}
+
+```
+
+### Sleep Duration
+
+```{r, echo = FALSE}
+tab_pr.sleepdur <- table_nums(name = "pr.sleepDur",
+                        caption = "Results of Poisson Regression with Sleep Duration as Independent Variable")
+```
+
+`r table_nums('pr.sleepDur')`
+```{r PR sleep duration}
+pr_function(dep.var = "SLEEP_ACTUALHOURS.cat", dep.name =  "Sleep Duration")
+```
+
+
+### Sleep Efficiency
+
+```{r, echo = FALSE}
+tab_pr.sleepeff <- table_nums(name = "pr.sleepEff",
+                        caption = "Results of Poisson Regression with Sleep Efficiency as Independent Variable")
+```
+
+`r table_nums('pr.sleepEff')`
+```{r PR sleep efficiency}
+pr_function(dep.var = "SLEEP_EFFICIENCY.cat", dep.name =  "Sleep Efficiency")
+
+```
+
+### Sleep Disturbance
+
+```{r, echo = FALSE}
+tab_pr.sleepdist <- table_nums(name = "pr.sleepDist",
+                        caption = "Results of Poisson Regression with Sleep Disturbance as Independent Variable")
+```
+
+`r table_nums('pr.sleepDist')`
+```{r PR sleep disturbance}
+pr_function(dep.var = "SLEEP_DISTURBANCE.cat", dep.name =  "Sleep Disturbance")
+
+```
+
+
+### Daytime Dysfunction
+
+```{r, echo = FALSE}
+tab_pr.daydys <- table_nums(name = "pr.daydys",
+                        caption = "Results of Poisson Regression with Daytime Dysfunction as Independent Variable")
+```
+
+`r table_nums('pr.daydys')`
+```{r PR daytime dysfunction}
+pr_function(dep.var = "DAYTIME_DYSFUNCTION.cat", dep.name =  "Daytime Dysfunction")
+
+```
+
+
+### Sleep Latency
+
+```{r, echo = FALSE}
+tab_pr.sleeplat <- table_nums(name = "pr.sleeplat",
+                        caption = "Results of Poisson Regression with Sleep Latency as Independent Variable")
+```
+
+`r table_nums('pr.sleeplat')`
+```{r PR sleep latency}
+pr_function(dep.var = "SLEEP_LATENCY.cat", dep.name =  "Sleep Latency")
+
+```
+
+
+### PSQI Score
+
+```{r, echo = FALSE}
+tab_pr.psqi <- table_nums(name = "pr.psqi",
+                        caption = "Results of Poisson Regression with PSQI score as Independent Variable")
+```
+
+`r table_nums('pr.psqi')`
+```{r PR PSQI score}
+pr_function(dep.var = "PSQI_score", dep.name =  "PSQI")
+
+```
+
+
+```{r, echo = FALSE}
+tab_pr.psqi <- table_nums(name = "pr.psqicat",
+                        caption = "Results of Poisson Regression with PSQI score categorization as Independent Variable")
+```
+
+`r table_nums('pr.psqicat')`
+```{r PR PSQI score cat}
+pr_function(dep.var = "PSQI_score.cat", dep.name =  "PSQI cat")
+
+```
