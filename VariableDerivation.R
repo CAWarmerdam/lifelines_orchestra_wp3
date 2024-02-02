@@ -27,6 +27,7 @@ library("rjson")
 library("tidyverse")
 library("lubridate")
 library("readxl")
+library("dtplyr")
 
 source("Snippets.R")
 
@@ -72,15 +73,18 @@ q_specific_harmonization <- function(q_data, snippets) {
     }
     return(q_data)
   }
-  
   # Iterate through each snippet and apply harmonization
   for (snippet in snippets) {
     # are all required columns in there
-    if (all(snippet$cols %in% names(q_data))) {
+    if (all(snippet$cols %in% colnames(q_data))) {
       q_data <- wrapper(q_data, snippet$optional, snippet$func)
     }
   }
   return(q_data)
+}
+
+verify_mapping <- function(q_data, named_mapping_vector) {
+  # For each named
 }
 
 # Function to calculate the number of COVID infections
@@ -88,15 +92,16 @@ q_specific_harmonization <- function(q_data, snippets) {
 #' @return A tibble summarizing the number of COVID infections.
 number_of_covid_infections <- function(q_data_list) {
   mapping <- bind_rows(
-    generate_mapping("infection_adu_q_1_a", timepoint_labels[1:6], "covid_infections_1_15"),
-    generate_mapping("infection_adu_q_2_a", timepoint_labels[7:15], "covid_infections_1_15"),
-    generate_mapping("infection_adu_q_1_a", timepoint_labels[16:21], "covid_infection_15b_19"),
+    generate_mapping("infection_adu_q_1_a", timepoint_labels[1:5], "covid_infections_1_15"),
+    generate_mapping("infection_adu_q_2_a", timepoint_labels[6:15], "covid_infections_1_15"),
+    generate_mapping("coronatest_adu_q_1_a", timepoint_labels[16:21], "covid_infection_15b_19"),
     generate_mapping("coronatest_adu_q_1_b", timepoint_labels[16:21], "covid_infection_ggd_15b_19"),
     generate_mapping("accesstest_adu_q_1_a", timepoint_labels[22:28], "covid_accesstest_20_26"),
     generate_mapping("ggdtest_adu_q_1_a", timepoint_labels[22:31], "covid_ggdtest_20_29"),
     generate_mapping("othertest_adu_q_1_a", timepoint_labels[22:31], "covid_othertest_20_29"),
     generate_mapping("selftest_adu_q_1_a", timepoint_labels[22:31], "covid_selftest_20_29"),
-    generate_mapping("worktest_adu_q_1_a", timepoint_labels[22:31], "covid_worktest_20_29"))
+    generate_mapping("worktest_adu_q_1_a", timepoint_labels[22:31], "covid_worktest_20_29"),
+    generate_mapping("responsedate_adu_q_1", timepoint_labels[1:31], "responsedate"))
   
   # Return a tibble with a column for infection (y/n), 
   # a column for type (ggd/access/self/work/other/part/unknown)
@@ -112,42 +117,83 @@ number_of_covid_infections <- function(q_data_list) {
          optional = c("covid_accesstest_20_26" = NA_integer_), 
          func = .func_covid_infections_20_29)
   )
-
+  
   # Per questionnaire, replace all the columns from above.
-  data_list_renamed <- mapply(function(q_data, q) {
+  data_list_renamed <- mapply(function(q_data, t_id) {
+    named_mapping_vector <- mapping %>% 
+      filter(t == t_id) %>% select(qnew, q) %>% deframe()
+    
+    message(sprintf("Processing %s", t_id))
+    
     return(q_specific_harmonization(
-      q_data %>% rename(mapping %>% select(q, qnew) %>% deframe()), get_covid_infection))
-  }, q_data_list, names(data_list), SIMPLIFY=F)
+      q_data %>% rename(named_mapping_vector) %>% as_tibble(), get_covid_infection) %>% 
+        select(project_pseudo_id, covid_infection, responsedate))
+  }, q_data_list, names(q_data_list), SIMPLIFY=F)
   
   # Filter rows where tested postive ()
   out_table <- bind_rows(data_list_renamed) %>%
-    group_by(project_pseudo_id) %>%
+    mutate(project_pseudo_id = factor(project_pseudo_id)) %>%
+    group_by(project_pseudo_id, .drop=F) %>%
     arrange(responsedate) %>%
     mutate(
-      meandate = mean(lag(responsedate), responsedate)) %>%
-    filter(covid_infection) %>%
-    mutate(positive_test_dates_filtered = accumulate(
-      meandate, function(x, y) { if(y > x + 90) { return(y) } else { return(x) }}, .init = -Inf)) %>%
-    summarise(nbCovInfections = sum(positive_test_dates_filtered, na.rm = T))
+      meandate = as_date(rowMeans(cbind(lag(responsedate), responsedate), na.rm=T))) %>%
+    filter(!is.na(covid_infection) & covid_infection) %>%
+    mutate(new_positive_test_date = case_when(
+      is.na(lag(meandate)) & !is.na(meandate) ~ T,
+      meandate - lag(meandate) > 90 ~ T,
+      TRUE ~ F
+    )) %>%
+    summarise(nbCovInfections = sum(new_positive_test_date, na.rm = T))
   
 }
 
 
 number_of_long_covid_symptoms <- function(q_data_list) {
   mapping <- bind_rows(
-    generate_mapping("scl90som07_adu_q_1", timepoint_labels[1:6], "difficulty_breathing"),
-    generate_mapping("scl90som07_adu_q_2", timepoint_labels[c(7:9,11:31)], "difficulty_breathing"),
-    generate_mapping("fatigue_adu_q_1_a", timepoint_labels[1:6], "felt_tired"),
-    generate_mapping("fatigue_adu_q_2_a", timepoint_labels[c(7:9,11:31)], "felt_tired"),
-    generate_mapping("fatigue_adu_q_1_f", timepoint_labels[1:6], "dry_cough"),
-    generate_mapping("fatigue_adu_q_2_f", timepoint_labels[c(7:9,11:31)], "dry_cough"),
-    generate_mapping("fatigue_adu_q_1_g", timepoint_labels[1:6], "wet_cough"),
-    generate_mapping("fatigue_adu_q_2_g", timepoint_labels[c(7:9,11:31)], "wet_cough"),
-    generate_mapping("symptoms_adu_q_1_i2", timepoint_labels[1:6], "stomach_pain"),
-    generate_mapping("symptoms_adu_q_2_i2", timepoint_labels[c(7:9, 11:31)], "stomach_pain"),
-    generate_mapping("symptoms_adu_q_1_i2", timepoint_labels[1:6], "stomach_pain"),
-    generate_mapping("symptoms_adu_q_2_i2", timepoint_labels[c(7:9, 11:31)], "stomach_pain")
+    generate_mapping("scl90som07_adu_q_2", timepoint_labels[31], "symptoms_breath"),
+    generate_mapping("fatigue_adu_q_2_a", timepoint_labels[31], "symptoms_tired"),
+    generate_mapping("symptoms_adu_q_1_s", timepoint_labels[31], "symptoms_activity"),
+    generate_mapping("symptoms_adu_q_2_f", timepoint_labels[31], "tmp_dry_cough"),
+    generate_mapping("symptoms_adu_q_2_g", timepoint_labels[31], "tmp_wet_cough"),
+    generate_mapping("symptoms_adu_q_2_i1", timepoint_labels[31], "tmp_diarrhea"),
+    generate_mapping("symptoms_adu_q_2_i2", timepoint_labels[31], "tmp_stomach_pain"),
+    generate_mapping("symptoms_adu_q_1_r", timepoint_labels[31], "symptoms_palpitations"),
+    generate_mapping("scl90som06_adu_q_2", timepoint_labels[31], "symptoms_joint_muscle_pain"),
+    generate_mapping("scl90som09_adu_q_2", timepoint_labels[31], "symptoms_tingling"),
+    generate_mapping("minia3b_adu_q_2", timepoint_labels[31], "symptoms_sleep"),
+    generate_mapping("scl90som02_adu_q_2", timepoint_labels[31], "symptoms_dizziness"),
+    generate_mapping("symptoms_adu_q_1_m", timepoint_labels[31], "symptoms_rash"),
+    generate_mapping("symptoms_adu_q_2_j", timepoint_labels[31], "symptoms_smell_taste")
     )
+  
+  # Per questionnaire, replace all the columns from above.
+  q_data_list <- q_data_list["covt29"]
+  
+  data_list_renamed <- mapply(function(q_data, t_id) {
+    named_mapping_vector <- mapping %>% 
+      filter(t == t_id) %>% select(q, qnew) %>% deframe()
+    
+    return(q_data %>% rename(named_mapping_vector))
+  }, q_data_list, names(q_data_list), SIMPLIFY=F)
+  
+  bind_rows(data_list_renamed) %>% 
+    mutate(across(c("symptoms_breath", "symptoms_activity", 
+                    "tmp_dry_cough", "tmp_wet_cough", 
+                    "symptoms_palpitations", "tmp_stomach_pain",
+                    "tmp_diarrhea", "symptoms_joint_muscle_pain", 
+                    "symptoms_tingling",
+                    "symptoms_dizziness", "symptoms_rash", 
+                    "symptoms_smell_taste"), ~ .x > 2),
+           across(c("symptoms_tired"), ~ .x < 4),
+           across(c("symptoms_sleep"), ~ case_when(.x == 1 ~ T, .x == 2 ~ F)),
+           symptom_cough = (!is.na(tmp_dry_cough) & tmp_dry_cough) 
+                            | (!is.na(tmp_wet_cough) & tmp_wet_cough),
+           symptoms_abdominalpain_diarrhoea = (!is.na(tmp_dry_cough) & tmp_dry_cough) 
+                            | (!is.na(tmp_wet_cough) & tmp_wet_cough)) %>%
+    select(-starts_with("tmp_"))
+             
+    
+  
 }
 
 
@@ -177,6 +223,9 @@ main <- function(argv=NULL) {
 
   }
   
+  names(q_data_list) <- timepoint_labels
+  
+  # 
   number_of_covid_infections_tibble <- number_of_covid_infections(q_data_list)
   number_of_long_covid_symptoms <- number_of_long_covid_symptoms(q_data_list)
   
