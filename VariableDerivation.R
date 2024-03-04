@@ -145,6 +145,7 @@ number_of_covid_infections <- function(q_data_list) {
     )) %>%
     summarise(nbCovInfections = sum(new_positive_test_date, na.rm = T))
   
+  return(out_table)
 }
 
 
@@ -152,6 +153,7 @@ number_of_long_covid_symptoms <- function(q_data_list) {
   mapping <- bind_rows(
     generate_mapping("scl90som07_adu_q_2", timepoint_labels[31], "symptoms_breath"),
     generate_mapping("fatigue_adu_q_2_a", timepoint_labels[31], "symptoms_tired"),
+    generate_mapping("scl90som01_adu_q_2", timepoint_labels[31], "symptoms_headache_consciousness"),
     generate_mapping("symptoms_adu_q_1_s", timepoint_labels[31], "symptoms_activity"),
     generate_mapping("symptoms_adu_q_2_f", timepoint_labels[31], "tmp_dry_cough"),
     generate_mapping("symptoms_adu_q_2_g", timepoint_labels[31], "tmp_wet_cough"),
@@ -171,29 +173,189 @@ number_of_long_covid_symptoms <- function(q_data_list) {
   
   data_list_renamed <- mapply(function(q_data, t_id) {
     named_mapping_vector <- mapping %>% 
-      filter(t == t_id) %>% select(q, qnew) %>% deframe()
+      filter(t == t_id) %>% select(qnew, q) %>% deframe()
     
-    return(q_data %>% rename(named_mapping_vector))
+    message(sprintf("Processing %s", t_id))
+    
+    return(q_data %>% rename(named_mapping_vector) %>% as_tibble())
   }, q_data_list, names(q_data_list), SIMPLIFY=F)
   
-  bind_rows(data_list_renamed) %>% 
-    mutate(across(c("symptoms_breath", "symptoms_activity", 
+  out_table <- bind_rows(data_list_renamed) %>% 
+    mutate(across(c("symptoms_breath", "symptoms_activity",
                     "tmp_dry_cough", "tmp_wet_cough", 
                     "symptoms_palpitations", "tmp_stomach_pain",
                     "tmp_diarrhea", "symptoms_joint_muscle_pain", 
-                    "symptoms_tingling",
+                    "symptoms_tingling", "symptoms_headache_consciousness",
                     "symptoms_dizziness", "symptoms_rash", 
                     "symptoms_smell_taste"), ~ .x > 2),
            across(c("symptoms_tired"), ~ .x < 4),
            across(c("symptoms_sleep"), ~ case_when(.x == 1 ~ T, .x == 2 ~ F)),
-           symptom_cough = (!is.na(tmp_dry_cough) & tmp_dry_cough) 
+           symptoms_cough = (!is.na(tmp_dry_cough) & tmp_dry_cough) 
                             | (!is.na(tmp_wet_cough) & tmp_wet_cough),
            symptoms_abdominalpain_diarrhoea = (!is.na(tmp_dry_cough) & tmp_dry_cough) 
                             | (!is.na(tmp_wet_cough) & tmp_wet_cough)) %>%
     select(-starts_with("tmp_"))
              
     
+  return(out_table)
+}
+
+
+loneliness_scale <- function(q_data_list) {
+    mapping <- bind_rows(
+      generate_mapping("isolation_adu_q_2_c", timepoint_labels[31], "tmp_isolation_c"),
+      generate_mapping("isolation_adu_q_2_a", timepoint_labels[31], "tmp_isolation_a"),
+      generate_mapping("isolation_adu_q_2_b", timepoint_labels[31], "tmp_isolation_b"),
+    )
+    
+    # Per questionnaire, replace all the columns from above.
+    q_data_list <- q_data_list["covt29"]
+    
+    data_list_renamed <- mapply(function(q_data, t_id) {
+      named_mapping_vector <- mapping %>% 
+        filter(t == t_id) %>% select(qnew, q) %>% deframe()
+      
+      message(sprintf("Processing %s", t_id))
+      
+      return(q_data %>% rename(named_mapping_vector) %>% as_tibble() %>% 
+               select(all_of(named_mapping_vector), project_pseudo_id))
+    }, q_data_list, names(q_data_list), SIMPLIFY=F)
+    
+    out_table <- bind_rows(data_list_renamed) %>% 
+      mutate(UCLA_LONELINESS_SCALE_UCLA = rowSums(across(starts_with("tmp_isolation")))) %>%
+      select(project_pseudo_id, UCLA_LONELINESS_SCALE_UCLA)
+    
+    return(out_table)
+}
+
+
+sleep_quality <- function(q_data_list) {
+  mapping <- bind_rows(
+    generate_mapping("sleeptimes_adu_q_1_d", timepoint_labels[30], "sleeptimes_actual"),
+    generate_mapping("sleeptimes_adu_q_1_c", timepoint_labels[30], "sleeptimes_end"),
+    generate_mapping("sleeptimes_adu_q_1_a", timepoint_labels[30], "sleeptimes_start"),
+    generate_mapping("sleeptimes_adu_q_1_b", timepoint_labels[30], "SLEEP_TIMETOSLEEP"),
+    generate_mapping("sleepquality_adu_q_1_a", timepoint_labels[30], "SLEEP_PROBLEMS_TIME"),
+    generate_mapping("sleepquality_adu_q_1_b", timepoint_labels[30], "SLEEP_PROBLEMS_WAKINGUP"),
+    generate_mapping("sleepquality_adu_q_1_c", timepoint_labels[30], "SLEEP_PROBLEMS_BREATING"),
+    generate_mapping("sleepquality_adu_q_1_d", timepoint_labels[30], "SLEEP_PROBLEMS_COUGH_SNORE"),
+    generate_mapping("sleepquality_adu_q_1_e", timepoint_labels[30], "SLEEP_PROBLEMS_FEELING_HOT"),
+    generate_mapping("sleepquality_adu_q_1_f", timepoint_labels[30], "SLEEP_PROBLEMS_BAD_DREAMS"),
+    generate_mapping("sleepquality_adu_q_1_g", timepoint_labels[30], "SLEEP_PROBLEMS_PAIN"),
+    generate_mapping("sleepquality_adu_q_1_h", timepoint_labels[30], "SLEEP_TROUBLE_STAYINGAWAKE"),
+    generate_mapping("sleepquality_adu_q_1_i", timepoint_labels[30], "SLEEP_LACKING_ENTUSIASM")
+  )
   
+  # Per questionnaire, replace all the columns from above.
+  q_data_list <- q_data_list["covt28"]
+  
+  data_list_renamed <- mapply(function(q_data, t_id) {
+    named_mapping_vector <- mapping %>% 
+      filter(t == t_id) %>% select(qnew, q) %>% deframe()
+    
+    message(sprintf("Processing %s", t_id))
+    
+    return(q_data %>% rename(named_mapping_vector) %>% as_tibble() %>% 
+             select(all_of(named_mapping_vector), project_pseudo_id))
+  }, q_data_list, names(q_data_list), SIMPLIFY=F)
+  
+  out_table <- bind_rows(data_list_renamed) %>% 
+    mutate(SLEEP_ACTUALHOURS.cat = case_when(sleeptimes_actual >= 7 ~ 0,
+                                             sleeptimes_actual >= 6 ~ 1,
+                                             sleeptimes_actual >= 5 ~ 2,
+                                             sleeptimes_actual < 5 ~ 3),
+           HOURS_IN_BED = sleeptimes_end - sleeptimes_start,
+           SLEEP_EFFICIENCY = sleeptimes_actual / HOURS_IN_BED * 100,
+           SLEEP_EFFICIENCY.cat = case_when(SLEEP_EFFICIENCY >= 85 ~ 0,
+                                             SLEEP_EFFICIENCY >= 75 ~ 1,
+                                             SLEEP_EFFICIENCY >= 65 ~ 2,
+                                             SLEEP_EFFICIENCY < 65 ~ 3),
+           SLEEP_DISTURBANCE = rowSums(across(starts_with("SLEEP_PROBLEMS"))),
+           SLEEP_DISTURBANCE.cat = case_when(SLEEP_DISTURBANCE == 0 ~ 0,
+                                             SLEEP_DISTURBANCE <= 6 ~ 1,
+                                             SLEEP_DISTURBANCE <= 12 ~ 2,
+                                             SLEEP_DISTURBANCE > 12 ~ 3),
+           DAYTIME_DYSFUNCTION = SLEEP_TROUBLE_STAYINGAWAKE + SLEEP_LACKING_ENTUSIASM,
+           DAYTIME_DYSFUNCTION.cat = case_when(DAYTIME_DYSFUNCTION == 0 ~ 0,
+                                           DAYTIME_DYSFUNCTION <= 2 ~ 1,
+                                           DAYTIME_DYSFUNCTION <= 4 ~ 2,
+                                           DAYTIME_DYSFUNCTION > 4 ~ 3),
+           SLEEP_TIMETOSLEEP_cat = case_when(SLEEP_TIMETOSLEEP < 15 ~ 0,
+                                             SLEEP_TIMETOSLEEP < 30 ~ 1,
+                                             SLEEP_TIMETOSLEEP < 60 ~ 2,
+                                             SLEEP_TIMETOSLEEP > 60 ~ 3),
+           SLEEP_LATENCY = SLEEP_TIMETOSLEEP_cat + SLEEP_PROBLEMS_TIME,
+           SLEEP_LATENCY.cat = case_when(SLEEP_LATENCY == 0 ~ 0,
+                                         SLEEP_LATENCY <= 2 ~ 1,
+                                         SLEEP_LATENCY <= 4 ~ 2,
+                                         SLEEP_LATENCY > 4 ~ 3),
+           PSQI_score = SLEEP_ACTUALHOURS.cat + SLEEP_EFFICIENCY.cat + SLEEP_DISTURBANCE.cat + DAYTIME_DYSFUNCTION.cat + SLEEP_LATENCY.cat,
+           PSQI_score.cat = case_when(PSQI_score > 4 ~ "Poor sleep quality",
+                                      PSQI_score <= 4 ~ "Good sleep quality")) %>%
+    select(project_pseudo_id, starts_with("SLEEP"), HOURS_IN_BED, starts_with("DAYTIME_DYSFUNCTION"), starts_with("PSQI"))
+  
+  return(out_table)
+}
+
+depression <- function(q_data_list) {
+  mapping <- bind_rows(
+    generate_mapping("minia1_adu_q_1", timepoint_labels[1:5], "DepressedMood"),
+    generate_mapping("minia1_adu_q_2", timepoint_labels[6:31], "DepressedMood"),
+    generate_mapping("minia3d_adu_q_1", timepoint_labels[1:5], "DecreasedInterestPleasure"),
+    generate_mapping("minia3d_adu_q_2", timepoint_labels[6:31], "DecreasedInterestPleasure"),
+    generate_mapping("minia2_adu_q_1", timepoint_labels[1:5], "FatigueLossEnergy"),
+    generate_mapping("minia2_adu_q_2", timepoint_labels[6:31], "FatigueLossEnergy"),
+    generate_mapping("minia3a_adu_q_1", timepoint_labels[1:5], "ChangesWeightAppetite"),
+    generate_mapping("minia3a_adu_q_2", timepoint_labels[6:31], "ChangesWeightAppetite"),
+    generate_mapping("minia3f_adu_q_1", timepoint_labels[1:5], "DiminishedConcentration"),
+    generate_mapping("minia3f_adu_q_2", timepoint_labels[6:31], "DiminishedConcentration"),
+    generate_mapping("minia3b_adu_q_1", timepoint_labels[1:5], "ChangesSleep"),
+    generate_mapping("minia3b_adu_q_2", timepoint_labels[6:31], "ChangesSleep"),
+    generate_mapping("minia3e_adu_q_1", timepoint_labels[1:5], "Worthlessness"),
+    generate_mapping("minia3e_adu_q_2", timepoint_labels[6:31], "Worthlessness"),
+    generate_mapping("minia3c_adu_q_1", timepoint_labels[1:5], "AgitationRetardation"),
+    generate_mapping("minia3c_adu_q_2", timepoint_labels[6:31], "AgitationRetardation")
+  )
+  
+  # Per questionnaire, replace all the columns from above.
+  data_list_renamed <- mapply(function(q_data, t_id) {
+    named_mapping_vector <- mapping %>% 
+      filter(t == t_id) %>% select(qnew, q) %>% deframe()
+    
+    message(sprintf("Processing %s", t_id))
+    
+    return(q_data %>% rename(named_mapping_vector) %>% as_tibble() %>% 
+             select(all_of(named_mapping_vector), project_pseudo_id))
+  }, q_data_list, names(q_data_list), SIMPLIFY=F)
+  
+  out_table <- bind_rows(data_list_renamed) %>% 
+    mutate(mandatory_symptoms = DepressedMood == 1 | DecreasedInterestPleasure == 1,
+           sum_of_symptoms = rowSums(DepressedMood, DcreasedInterestPleasure, FatigueLossEnergy, ChangesWeightAppetite, DiminshedConcentration, ChangeSleep, Worthlessness, AgitationRetardation),
+           MDD = case_when(mandatory_symptoms & sum_of_symptoms >= 4 ~ "Yes", TRUE ~ "No")) %>%
+    select(project_pseudo_id, MDD)
+  
+  return(out_table)
+}
+
+demographics <- function(q_data_list) {
+
+  data_list_renamed <- mapply(function(q_data, t_id) {
+    
+    message(sprintf("Processing %s", t_id))
+    
+    return(q_data %>%
+             select(all_of(c("gender", "age")), project_pseudo_id))
+  }, q_data_list, names(q_data_list), SIMPLIFY=F)
+  
+  out_table <- bind_rows(data_list_renamed) %>% 
+    mutate(project_pseudo_id = factor(project_pseudo_id)) %>%
+    group_by(project_pseudo_id, .drop=F) %>%
+    slice_max(age) %>%
+    mutate(DEMOGRAPHICS_45.imp = case_when(gender == 1 ~ "MALE", gender == 2 ~ "FEMALE"),
+           DEMOGRAPHICS_46 = age) %>%
+    select(project_pseudo_id,  DEMOGRAPHICS_45.imp,  DEMOGRAPHICS_46)
+  
+  return(out_table)
 }
 
 
