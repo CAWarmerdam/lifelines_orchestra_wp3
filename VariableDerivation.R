@@ -143,7 +143,7 @@ number_of_covid_infections <- function(q_data_list) {
       meandate - lag(meandate) > 90 ~ T,
       TRUE ~ F
     )) %>%
-    summarise(nbCovInfections = sum(new_positive_test_date, na.rm = T))
+    summarise(nbCovInfections = sum(new_positive_test_date, na.rm = T), CovInfectionDates = list(meandate))
   
   return(out_table)
 }
@@ -177,7 +177,8 @@ number_of_long_covid_symptoms <- function(q_data_list) {
     
     message(sprintf("Processing %s", t_id))
     
-    return(q_data %>% rename(named_mapping_vector) %>% as_tibble())
+    return(q_data %>% rename(named_mapping_vector) %>% as_tibble() %>%
+             select(all_of(names(named_mapping_vector)), project_pseudo_id))
   }, q_data_list, names(q_data_list), SIMPLIFY=F)
   
   out_table <- bind_rows(data_list_renamed) %>% 
@@ -218,7 +219,7 @@ loneliness_scale <- function(q_data_list) {
       message(sprintf("Processing %s", t_id))
       
       return(q_data %>% rename(named_mapping_vector) %>% as_tibble() %>% 
-               select(all_of(named_mapping_vector), project_pseudo_id))
+               select(all_of(names(named_mapping_vector)), project_pseudo_id))
     }, q_data_list, names(q_data_list), SIMPLIFY=F)
     
     out_table <- bind_rows(data_list_renamed) %>% 
@@ -256,15 +257,21 @@ sleep_quality <- function(q_data_list) {
     message(sprintf("Processing %s", t_id))
     
     return(q_data %>% rename(named_mapping_vector) %>% as_tibble() %>% 
-             select(all_of(named_mapping_vector), project_pseudo_id))
+             select(all_of(names(named_mapping_vector)), project_pseudo_id))
   }, q_data_list, names(q_data_list), SIMPLIFY=F)
+  
+  PSQI_variables <- c("SLEEP_ACTUALHOURS.cat",
+    "SLEEP_EFFICIENCY.cat",
+    "SLEEP_DISTURBANCE.cat",
+    "DAYTIME_DYSFUNCTION.cat", 
+    "SLEEP_LATENCY.cat")
   
   out_table <- bind_rows(data_list_renamed) %>% 
     mutate(SLEEP_ACTUALHOURS.cat = case_when(sleeptimes_actual >= 7 ~ 0,
                                              sleeptimes_actual >= 6 ~ 1,
                                              sleeptimes_actual >= 5 ~ 2,
                                              sleeptimes_actual < 5 ~ 3),
-           HOURS_IN_BED = sleeptimes_end - sleeptimes_start,
+           HOURS_IN_BED = time_length(hms(sleeptimes_end) - hms(sleeptimes_start), unit="hours") + 24,
            SLEEP_EFFICIENCY = sleeptimes_actual / HOURS_IN_BED * 100,
            SLEEP_EFFICIENCY.cat = case_when(SLEEP_EFFICIENCY >= 85 ~ 0,
                                              SLEEP_EFFICIENCY >= 75 ~ 1,
@@ -284,12 +291,13 @@ sleep_quality <- function(q_data_list) {
                                              SLEEP_TIMETOSLEEP < 30 ~ 1,
                                              SLEEP_TIMETOSLEEP < 60 ~ 2,
                                              SLEEP_TIMETOSLEEP > 60 ~ 3),
-           SLEEP_LATENCY = SLEEP_TIMETOSLEEP_cat + SLEEP_PROBLEMS_TIME,
+           SLEEP_LATENCY = (SLEEP_TIMETOSLEEP_cat + SLEEP_PROBLEMS_TIME),
            SLEEP_LATENCY.cat = case_when(SLEEP_LATENCY == 0 ~ 0,
                                          SLEEP_LATENCY <= 2 ~ 1,
                                          SLEEP_LATENCY <= 4 ~ 2,
                                          SLEEP_LATENCY > 4 ~ 3),
-           PSQI_score = SLEEP_ACTUALHOURS.cat + SLEEP_EFFICIENCY.cat + SLEEP_DISTURBANCE.cat + DAYTIME_DYSFUNCTION.cat + SLEEP_LATENCY.cat,
+           PSQI_score = rowSums(across(all_of(
+             PSQI_variables))),
            PSQI_score.cat = case_when(PSQI_score > 4 ~ "Poor sleep quality",
                                       PSQI_score <= 4 ~ "Good sleep quality")) %>%
     select(project_pseudo_id, starts_with("SLEEP"), HOURS_IN_BED, starts_with("DAYTIME_DYSFUNCTION"), starts_with("PSQI"))
@@ -299,22 +307,53 @@ sleep_quality <- function(q_data_list) {
 
 depression <- function(q_data_list) {
   mapping <- bind_rows(
-    generate_mapping("minia1_adu_q_1", timepoint_labels[1:5], "DepressedMood"),
-    generate_mapping("minia1_adu_q_2", timepoint_labels[6:31], "DepressedMood"),
-    generate_mapping("minia3d_adu_q_1", timepoint_labels[1:5], "DecreasedInterestPleasure"),
-    generate_mapping("minia3d_adu_q_2", timepoint_labels[6:31], "DecreasedInterestPleasure"),
-    generate_mapping("minia2_adu_q_1", timepoint_labels[1:5], "FatigueLossEnergy"),
-    generate_mapping("minia2_adu_q_2", timepoint_labels[6:31], "FatigueLossEnergy"),
-    generate_mapping("minia3a_adu_q_1", timepoint_labels[1:5], "ChangesWeightAppetite"),
-    generate_mapping("minia3a_adu_q_2", timepoint_labels[6:31], "ChangesWeightAppetite"),
-    generate_mapping("minia3f_adu_q_1", timepoint_labels[1:5], "DiminishedConcentration"),
-    generate_mapping("minia3f_adu_q_2", timepoint_labels[6:31], "DiminishedConcentration"),
-    generate_mapping("minia3b_adu_q_1", timepoint_labels[1:5], "ChangesSleep"),
-    generate_mapping("minia3b_adu_q_2", timepoint_labels[6:31], "ChangesSleep"),
-    generate_mapping("minia3e_adu_q_1", timepoint_labels[1:5], "Worthlessness"),
-    generate_mapping("minia3e_adu_q_2", timepoint_labels[6:31], "Worthlessness"),
-    generate_mapping("minia3c_adu_q_1", timepoint_labels[1:5], "AgitationRetardation"),
-    generate_mapping("minia3c_adu_q_2", timepoint_labels[6:31], "AgitationRetardation")
+    generate_mapping("minia1_adu_q_1", timepoint_labels[1:6], "DepressedMood"),
+    generate_mapping("minia1_adu_q_2", timepoint_labels[c(7:11, 13:31)], "DepressedMood"),
+    generate_mapping("minia3d_adu_q_1", timepoint_labels[c(10:11, 13:31)], "DecreasedInterestPleasure"),
+    generate_mapping("minia2_adu_q_1", timepoint_labels[1:6], "FatigueLossEnergy"),
+    generate_mapping("minia2_adu_q_2", timepoint_labels[c(7:11, 13:31)], "FatigueLossEnergy"),
+    generate_mapping("minia3a_adu_q_1", timepoint_labels[1:6], "ChangesWeightAppetite"),
+    generate_mapping("minia3a_adu_q_2", timepoint_labels[c(7:11, 13:31)], "ChangesWeightAppetite"),
+    generate_mapping("minia3f_adu_q_1", timepoint_labels[1:6], "DiminishedConcentration"),
+    generate_mapping("minia3f_adu_q_2", timepoint_labels[c(7:11, 13:31)], "DiminishedConcentration"),
+    generate_mapping("minia3b_adu_q_1", timepoint_labels[1:6], "ChangesSleep"),
+    generate_mapping("minia3b_adu_q_2", timepoint_labels[c(7:11, 13:31)], "ChangesSleep"),
+    generate_mapping("minia3e_adu_q_1", timepoint_labels[1:6], "Worthlessness"),
+    generate_mapping("minia3e_adu_q_2", timepoint_labels[c(7:11, 13:31)], "Worthlessness"),
+    generate_mapping("minia3c_adu_q_1", timepoint_labels[1:6], "AgitationRetardation"),
+    generate_mapping("minia3c_adu_q_2", timepoint_labels[c(7:11, 13:31)], "AgitationRetardation"),
+    generate_mapping("responsedate_adu_q_1", timepoint_labels[1:31], "responsedate")
+  )
+  
+  q_data_list <- q_data_list[names(q_data_list) != "covt12"]
+  
+  # Per questionnaire, replace all the columns from above.
+  data_list_renamed <- mapply(function(q_data, t_id) {
+    named_mapping_vector <- mapping %>% 
+      filter(t == t_id) %>% select(qnew, q) %>% deframe()
+    
+    message(sprintf("Processing %s", t_id))
+    
+    return(q_data %>% rename(named_mapping_vector) %>% as_tibble() %>% 
+             select(all_of(names(named_mapping_vector)), project_pseudo_id, responsedate))
+  }, q_data_list, names(q_data_list), SIMPLIFY=F)
+  
+  out_table <- bind_rows(data_list_renamed) %>% 
+    mutate(project_pseudo_id = factor(project_pseudo_id)) %>%
+    group_by(project_pseudo_id, .drop=F) %>%
+    mutate(mandatory_symptoms = DepressedMood == 1 | DecreasedInterestPleasure == 1,
+           sum_of_symptoms = rowSums(across(all_of(c("DepressedMood", "DecreasedInterestPleasure", "FatigueLossEnergy", "ChangesWeightAppetite", "DiminishedConcentration", "ChangesSleep", "Worthlessness", "AgitationRetardation")))),
+           MDD = case_when(mandatory_symptoms & sum_of_symptoms >= 4 ~ "Yes", !is.na(mandatory_symptoms) & !is.na(sum_of_symptoms) ~ "No")) %>%
+    fill(MDD) %>%
+    slice_max(responsedate, with_ties=F) %>%
+    select(project_pseudo_id, MDD)
+  
+  return(out_table)
+}
+
+demographics <- function(q_data_list) {
+  mapping <- bind_rows(
+    generate_mapping("responsedate_adu_q_1", timepoint_labels[1:31], "responsedate")
   )
   
   # Per questionnaire, replace all the columns from above.
@@ -325,37 +364,14 @@ depression <- function(q_data_list) {
     message(sprintf("Processing %s", t_id))
     
     return(q_data %>% rename(named_mapping_vector) %>% as_tibble() %>% 
-             select(all_of(named_mapping_vector), project_pseudo_id, responsedate))
+             select(all_of(names(named_mapping_vector)), project_pseudo_id, age, gender))
   }, q_data_list, names(q_data_list), SIMPLIFY=F)
   
   out_table <- bind_rows(data_list_renamed) %>% 
     mutate(project_pseudo_id = factor(project_pseudo_id)) %>%
     group_by(project_pseudo_id, .drop=F) %>%
-    mutate(mandatory_symptoms = DepressedMood == 1 | DecreasedInterestPleasure == 1,
-           sum_of_symptoms = rowSums(DepressedMood, DcreasedInterestPleasure, FatigueLossEnergy, ChangesWeightAppetite, DiminshedConcentration, ChangeSleep, Worthlessness, AgitationRetardation),
-           MDD = case_when(mandatory_symptoms & sum_of_symptoms >= 4 ~ "Yes", !is.na(mandatory_symptoms) & !is.na(sum_of_symptoms) ~ "No")) %>%
-    fill(MDD) %>%
-    slice_max(responsedate) %>%
-    select(project_pseudo_id, MDD)
-  
-  return(out_table)
-}
-
-demographics <- function(q_data_list) {
-
-  data_list_renamed <- mapply(function(q_data, t_id) {
-    
-    message(sprintf("Processing %s", t_id))
-    
-    return(q_data %>%
-             select(all_of(c("gender", "age")), project_pseudo_id, responsedate))
-  }, q_data_list, names(q_data_list), SIMPLIFY=F)
-  
-  out_table <- bind_rows(data_list_renamed) %>% 
-    mutate(project_pseudo_id = factor(project_pseudo_id)) %>%
-    group_by(project_pseudo_id, .drop=F) %>%
-    slice_max(age) %>%
-    mutate(DEMOGRAPHICS_45.imp = case_when(gender == 1 ~ "MALE", gender == 2 ~ "FEMALE"),
+    slice_max(age, with_ties=F) %>%
+    mutate(DEMOGRAPHICS_45.imp = case_when(gender == "MALE" ~ "Male", gender == "FEMALE" ~ "Female"),
            DEMOGRAPHICS_46 = age) %>%
     select(project_pseudo_id,  DEMOGRAPHICS_45.imp,  DEMOGRAPHICS_46)
   
@@ -399,6 +415,11 @@ main <- function(argv=NULL) {
   depression_tib <- depression(q_data_list)
   demographic_tib <- demographics(q_data_list)
   
+  derived <- purrr::reduce(list(number_of_covid_infections_tib, number_of_long_covid_symptoms_tib, loneliness_scale_tib, sleep_quality_tib, depression_tib, demographic_tib), 
+                dplyr::full_join, by = 'project_pseudo_id')  
+  
+  fwrite(derived, "../out/derived_variables_RQ2.tsv", sep="\t", quote=F, row.names=F, col.names=T)
+  save(derived, "../out/derived_variables_RQ2.Rdata")
   
   # Perform method
   # Process output
