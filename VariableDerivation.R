@@ -325,13 +325,17 @@ depression <- function(q_data_list) {
     message(sprintf("Processing %s", t_id))
     
     return(q_data %>% rename(named_mapping_vector) %>% as_tibble() %>% 
-             select(all_of(named_mapping_vector), project_pseudo_id))
+             select(all_of(named_mapping_vector), project_pseudo_id, responsedate))
   }, q_data_list, names(q_data_list), SIMPLIFY=F)
   
   out_table <- bind_rows(data_list_renamed) %>% 
+    mutate(project_pseudo_id = factor(project_pseudo_id)) %>%
+    group_by(project_pseudo_id, .drop=F) %>%
     mutate(mandatory_symptoms = DepressedMood == 1 | DecreasedInterestPleasure == 1,
            sum_of_symptoms = rowSums(DepressedMood, DcreasedInterestPleasure, FatigueLossEnergy, ChangesWeightAppetite, DiminshedConcentration, ChangeSleep, Worthlessness, AgitationRetardation),
-           MDD = case_when(mandatory_symptoms & sum_of_symptoms >= 4 ~ "Yes", TRUE ~ "No")) %>%
+           MDD = case_when(mandatory_symptoms & sum_of_symptoms >= 4 ~ "Yes", !is.na(mandatory_symptoms) & !is.na(sum_of_symptoms) ~ "No")) %>%
+    fill(MDD) %>%
+    slice_max(responsedate) %>%
     select(project_pseudo_id, MDD)
   
   return(out_table)
@@ -344,7 +348,7 @@ demographics <- function(q_data_list) {
     message(sprintf("Processing %s", t_id))
     
     return(q_data %>%
-             select(all_of(c("gender", "age")), project_pseudo_id))
+             select(all_of(c("gender", "age")), project_pseudo_id, responsedate))
   }, q_data_list, names(q_data_list), SIMPLIFY=F)
   
   out_table <- bind_rows(data_list_renamed) %>% 
@@ -388,8 +392,13 @@ main <- function(argv=NULL) {
   names(q_data_list) <- timepoint_labels
   
   # 
-  number_of_covid_infections_tibble <- number_of_covid_infections(q_data_list)
-  number_of_long_covid_symptoms <- number_of_long_covid_symptoms(q_data_list)
+  number_of_covid_infections_tib <- number_of_covid_infections(q_data_list)
+  number_of_long_covid_symptoms_tib <- number_of_long_covid_symptoms(q_data_list)
+  loneliness_scale_tib <- loneliness_scale(q_data_list)
+  sleep_quality_tib <- sleep_quality(q_data_list)
+  depression_tib <- depression(q_data_list)
+  demographic_tib <- demographics(q_data_list)
+  
   
   # Perform method
   # Process output
