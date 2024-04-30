@@ -406,8 +406,8 @@ demographics <- function(q_data_list) {
              DEMOGRAPHICS_61 %in% c("In retirement or early retirement") ~ "Retired"
            ),
            migration.status = case_when(
-             migration.status %in% c(1,2) ~ "First generation immigrant"
-             migration.status %in% c(3,4) ~ "Second generation immigrant"
+             migration.status %in% c(1,2) ~ "First generation immigrant",
+             migration.status %in% c(3,4) ~ "Second generation immigrant",
              migration.status == 5 ~ "Native born"
            )) %>%
     select(project_pseudo_id,  DEMOGRAPHICS_45.imp,  DEMOGRAPHICS_46, DEMOGRAPHICS_61, work.status, migration.status)
