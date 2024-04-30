@@ -280,8 +280,8 @@ sleep_quality <- function(q_data_list) {
            SLEEP_DISTURBANCE = rowSums(across(starts_with("SLEEP_PROBLEMS"))),
            SLEEP_DISTURBANCE.cat = case_when(SLEEP_DISTURBANCE == 0 ~ 0,
                                              SLEEP_DISTURBANCE <= 6 ~ 1,
-                                             SLEEP_DISTURBANCE <= 12 ~ 2,
-                                             SLEEP_DISTURBANCE > 12 ~ 3),
+                                             SLEEP_DISTURBANCE <= 13 ~ 2,
+                                             SLEEP_DISTURBANCE > 13 ~ 3),
            DAYTIME_DYSFUNCTION = SLEEP_TROUBLE_STAYINGAWAKE + SLEEP_LACKING_ENTUSIASM,
            DAYTIME_DYSFUNCTION.cat = case_when(DAYTIME_DYSFUNCTION == 0 ~ 0,
                                            DAYTIME_DYSFUNCTION <= 2 ~ 1,
@@ -353,7 +353,10 @@ depression <- function(q_data_list) {
 
 demographics <- function(q_data_list) {
   mapping <- bind_rows(
-    generate_mapping("responsedate_adu_q_1", timepoint_labels[1:31], "responsedate")
+    generate_mapping("responsedate_adu_q_1", timepoint_labels[1:31], "responsedate"),
+    generate_mapping("maritalstatus_adu_q_1", timepoint_labels[c(26,28,30)], "MaritalStatus"),
+    generate_mapping("employment_adu_q_4", timepoint_labels[c(28,30)], "WorkStatus"),
+    generate_mapping("migration_adu_q_1", timepoint_labels[c(28)], "migration.status")
   )
   
   # Per questionnaire, replace all the columns from above.
@@ -370,10 +373,44 @@ demographics <- function(q_data_list) {
   out_table <- bind_rows(data_list_renamed) %>% 
     mutate(project_pseudo_id = factor(project_pseudo_id)) %>%
     group_by(project_pseudo_id, .drop=F) %>%
-    slice_max(age, with_ties=F) %>%
-    mutate(DEMOGRAPHICS_45.imp = case_when(gender == "MALE" ~ "Male", gender == "FEMALE" ~ "Female"),
-           DEMOGRAPHICS_46 = age) %>%
-    select(project_pseudo_id,  DEMOGRAPHICS_45.imp,  DEMOGRAPHICS_46)
+    summarise(DEMOGRAPHICS_45.imp = case_when(all(na.omit(gender) == "MALE") ~ "Male", all(na.omit(gender) == "FEMALE") ~ "Female"),
+           DEMOGRAPHICS_46 = max(age, na.rm = T),
+           DEMOGRAPHICS_47 = last(MaritalStatus, na_rm=T),
+           DEMOGRAPHICS_61 = last(WorkStatus, na_rm=T),
+           migration.status = last(migration.status, na.rm=T)) %>%
+    mutate(
+           DEMOGRAPHICS_47 = case_when(
+             DEMOGRAPHICS_47 == 1 ~ "Single",
+             DEMOGRAPHICS_47 == 2 ~ "Married",
+             DEMOGRAPHICS_47 == 3 ~ "Registered partnership",
+             DEMOGRAPHICS_47 == 4 ~ "Divorced",
+             DEMOGRAPHICS_47 == 5 ~ "Widowed",
+             DEMOGRAPHICS_47 == 6 ~ "Other status - Please specify"
+             ),
+           DEMOGRAPHICS_61 = case_when(
+             DEMOGRAPHICS_61 == 1 ~ "Full-time employed",
+             DEMOGRAPHICS_61 == 2 ~ "Part-time employed",
+             DEMOGRAPHICS_61 == 3 ~ "Self-employed or working for own family business",
+             DEMOGRAPHICS_61 == 4 ~ "Unemployed",
+             DEMOGRAPHICS_61 == 5 ~ "In vocational training/retraining/education",
+             DEMOGRAPHICS_61 == 6 ~ "Parental leave",
+             DEMOGRAPHICS_61 == 7 ~ "In retirement or early retirement",
+             DEMOGRAPHICS_61 == 8 ~ "Permanently sick or disabled",
+             DEMOGRAPHICS_61 == 9 ~ "Looking after home or family",
+             DEMOGRAPHICS_61 == 10 ~ "Short-time working b",
+             DEMOGRAPHICS_61 == 11 ~ "Other, please specify:"
+           ),
+           work.status = case_when(
+             DEMOGRAPHICS_61 %in% c("Full-time employed", "Part-time employed", "Self-employed or working for own family business", "Parental leave", "In vocational training/retraining/education") ~ "Employed",
+             DEMOGRAPHICS_61 %in% c("Unemployed", "Permanently sick or disabled", "Looking after home or family", "Short-time working b") ~ "Unemployed",
+             DEMOGRAPHICS_61 %in% c("In retirement or early retirement") ~ "Retired"
+           ),
+           migration.status = case_when(
+             migration.status %in% c(1,2) ~ "First generation immigrant"
+             migration.status %in% c(3,4) ~ "Second generation immigrant"
+             migration.status == 5 ~ "Native born"
+           )) %>%
+    select(project_pseudo_id,  DEMOGRAPHICS_45.imp,  DEMOGRAPHICS_46, DEMOGRAPHICS_61, work.status, migration.status)
   
   return(out_table)
 }
