@@ -456,7 +456,7 @@ main <- function(argv=NULL) {
                 dplyr::full_join, by = 'project_pseudo_id')  
   
   fwrite(derived, "../out/derived_variables_RQ2.tsv", sep="\t", quote=F, row.names=F, col.names=T)
-  save(derived, "../out/derived_variables_RQ2.Rdata")
+  save(derived, file="../out/derived_variables_RQ2.Rdata")
   
   # Perform method
   # Process output
