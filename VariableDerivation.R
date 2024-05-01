@@ -410,7 +410,7 @@ demographics <- function(q_data_list) {
              migration.status %in% c(3,4) ~ "Second generation immigrant",
              migration.status == 5 ~ "Native born"
            )) %>%
-    select(project_pseudo_id,  DEMOGRAPHICS_45.imp,  DEMOGRAPHICS_46, DEMOGRAPHICS_61, work.status, migration.status)
+    select(project_pseudo_id,  DEMOGRAPHICS_45.imp,  DEMOGRAPHICS_46, DEMOGRAPHICS_47, DEMOGRAPHICS_61, work.status, migration.status)
   
   return(out_table)
 }
