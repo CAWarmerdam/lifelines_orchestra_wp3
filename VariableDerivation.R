@@ -375,9 +375,9 @@ demographics <- function(q_data_list) {
     group_by(project_pseudo_id, .drop=F) %>%
     summarise(DEMOGRAPHICS_45.imp = case_when(all(na.omit(gender) == "MALE") ~ "Male", all(na.omit(gender) == "FEMALE") ~ "Female"),
            DEMOGRAPHICS_46 = max(age, na.rm = T),
-           DEMOGRAPHICS_47 = last(MaritalStatus, na_rm=T),
-           DEMOGRAPHICS_61 = last(WorkStatus, na_rm=T),
-           migration.status = last(migration.status, na.rm=T)) %>%
+           DEMOGRAPHICS_47 = last(na.omit(MaritalStatus)),
+           DEMOGRAPHICS_61 = last(na.omit(WorkStatus)),
+           migration.status = last(na.omit(migration.status))) %>%
     mutate(
            DEMOGRAPHICS_47 = case_when(
              DEMOGRAPHICS_47 == 1 ~ "Single",
