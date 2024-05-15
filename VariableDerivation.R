@@ -182,15 +182,15 @@ number_of_long_covid_symptoms <- function(q_data_list) {
   }, q_data_list, names(q_data_list), SIMPLIFY=F)
   
   out_table <- bind_rows(data_list_renamed) %>% 
-    mutate(across(c("symptoms_breath", "symptoms_activity",
+    mutate(across(c("SCT_267036007_", "LN_75325_1_worsening",
                     "tmp_dry_cough", "tmp_wet_cough", 
-                    "symptoms_palpitations", "tmp_stomach_pain",
-                    "tmp_diarrhea", "symptoms_joint_muscle_pain", 
-                    "symptoms_tingling", "symptoms_headache_consciousness",
-                    "symptoms_dizziness", "symptoms_rash", 
-                    "symptoms_smell_taste"), ~ .x > 2),
-           across(c("symptoms_tired"), ~ .x < 4),
-           across(c("symptoms_sleep"), ~ case_when(.x == 1 ~ T, .x == 2 ~ F)),
+                    "SCT_248657009", "tmp_stomach_pain",
+                    "tmp_diarrhea", "SCT_57676002_", 
+                    "SCT_62507009", "SCT_25064002_",
+                    "SCT_404640003", "SCT_271807003_", 
+                    "SCT_44169009_"), ~ .x > 2),
+           across(c("SCT_84229001_367391008_"), ~ .x < 4),
+           across(c("SCT_106168000"), ~ case_when(.x == 1 ~ T, .x == 2 ~ F)),
            SCT_49727002_ = (!is.na(tmp_dry_cough) & tmp_dry_cough) 
                             | (!is.na(tmp_wet_cough) & tmp_wet_cough),
            SCT_62315008_ = (!is.na(tmp_dry_cough) & tmp_dry_cough) 
