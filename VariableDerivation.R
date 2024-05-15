@@ -151,21 +151,21 @@ number_of_covid_infections <- function(q_data_list) {
 
 number_of_long_covid_symptoms <- function(q_data_list) {
   mapping <- bind_rows(
-    generate_mapping("scl90som07_adu_q_2", timepoint_labels[31], "symptoms_breath"),
-    generate_mapping("fatigue_adu_q_2_a", timepoint_labels[31], "symptoms_tired"),
-    generate_mapping("scl90som01_adu_q_2", timepoint_labels[31], "symptoms_headache_consciousness"),
-    generate_mapping("symptoms_adu_q_1_s", timepoint_labels[31], "symptoms_activity"),
+    generate_mapping("scl90som07_adu_q_2", timepoint_labels[31], "SCT_267036007_"),
+    generate_mapping("fatigue_adu_q_2_a", timepoint_labels[31], "SCT_84229001_367391008_"),
+    generate_mapping("scl90som01_adu_q_2", timepoint_labels[31], "SCT_25064002_"),
+    generate_mapping("symptoms_adu_q_1_s", timepoint_labels[31], "LN_75325_1_worsening"),
     generate_mapping("symptoms_adu_q_2_f", timepoint_labels[31], "tmp_dry_cough"),
     generate_mapping("symptoms_adu_q_2_g", timepoint_labels[31], "tmp_wet_cough"),
     generate_mapping("symptoms_adu_q_2_i1", timepoint_labels[31], "tmp_diarrhea"),
     generate_mapping("symptoms_adu_q_2_i2", timepoint_labels[31], "tmp_stomach_pain"),
-    generate_mapping("symptoms_adu_q_1_r", timepoint_labels[31], "symptoms_palpitations"),
-    generate_mapping("scl90som06_adu_q_2", timepoint_labels[31], "symptoms_joint_muscle_pain"),
-    generate_mapping("scl90som09_adu_q_2", timepoint_labels[31], "symptoms_tingling"),
-    generate_mapping("minia3b_adu_q_2", timepoint_labels[31], "symptoms_sleep"),
-    generate_mapping("scl90som02_adu_q_2", timepoint_labels[31], "symptoms_dizziness"),
-    generate_mapping("symptoms_adu_q_1_m", timepoint_labels[31], "symptoms_rash"),
-    generate_mapping("symptoms_adu_q_2_j", timepoint_labels[31], "symptoms_smell_taste")
+    generate_mapping("symptoms_adu_q_1_r", timepoint_labels[31], "SCT_248657009"),
+    generate_mapping("scl90som06_adu_q_2", timepoint_labels[31], "SCT_57676002_"),
+    generate_mapping("scl90som09_adu_q_2", timepoint_labels[31], "SCT_62507009"),
+    generate_mapping("minia3b_adu_q_2", timepoint_labels[31], "SCT_106168000"),
+    generate_mapping("scl90som02_adu_q_2", timepoint_labels[31], "SCT_404640003"),
+    generate_mapping("symptoms_adu_q_1_m", timepoint_labels[31], "SCT_271807003_"),
+    generate_mapping("symptoms_adu_q_2_j", timepoint_labels[31], "SCT_44169009_")
     )
   
   # Per questionnaire, replace all the columns from above.
@@ -191,9 +191,9 @@ number_of_long_covid_symptoms <- function(q_data_list) {
                     "symptoms_smell_taste"), ~ .x > 2),
            across(c("symptoms_tired"), ~ .x < 4),
            across(c("symptoms_sleep"), ~ case_when(.x == 1 ~ T, .x == 2 ~ F)),
-           symptoms_cough = (!is.na(tmp_dry_cough) & tmp_dry_cough) 
+           SCT_49727002_ = (!is.na(tmp_dry_cough) & tmp_dry_cough) 
                             | (!is.na(tmp_wet_cough) & tmp_wet_cough),
-           symptoms_abdominalpain_diarrhoea = (!is.na(tmp_dry_cough) & tmp_dry_cough) 
+           SCT_62315008_ = (!is.na(tmp_dry_cough) & tmp_dry_cough) 
                             | (!is.na(tmp_wet_cough) & tmp_wet_cough)) %>%
     select(-starts_with("tmp_"))
              
