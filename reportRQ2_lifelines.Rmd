@@ -66,7 +66,7 @@ set_flextable_defaults(font.size = 8, line_spacing = 0.8, table.layout = 'autofi
 
 ```{r loading derived data}
 # long format dataset (inlcuding 3 waves: COVQ24, COVQ27 and COVQ29)
-orclu.l <- read.csv("Data/orclu_long.csv", stringsAsFactors=TRUE)
+orclu.l <- read.csv("../out/derived_variables_RQ2.tsv", stringsAsFactors=TRUE, sep="\t")
 ```
 
 
@@ -108,16 +108,6 @@ orclu.l[, cesd.col] <- lapply(orclu.l[,cesd.col], factor, ordered = TRUE,
               levels=c("Rarely or None of the time (less than 1 day)", "Some or a Little of the time (1 - 2 days)", "Occasionally or a moderate amount of time (3 - 4 days)", "Most or All of the time (5 - 7 days)"))
 
 
-
-# column numbers of GAD-7 variable
-GAD.col <- which(startsWith(colnames(orclu.l), "GAD") == TRUE)[-1]
-
-# changing factor level order of GAD-7 variables
-orclu.l[, GAD.col] <- lapply(orclu.l[,GAD.col], factor, ordered = TRUE,
-              levels=c("Not at all", "Several days", "More than half the days", "Nearly every day"))
-
-# changing factor order GAD-7 cat
-orclu.l$cat_GAD7 <- factor(orclu.l$cat_GAD7, levels = c("None", "Mild", "Moderate", "Severe"))
 
 # column numbers of PSS variable
 PSS.names <- c("LN_66822_8", "LN_66824_4", "LN_66825_1", "LN_66830_1")
@@ -211,7 +201,7 @@ orclu.l$MDD <- factor(orclu.l$MDD, levels = c(0,1), labels = c("No", "Yes"))
 # Last wave
 # include only participants who had no missing values in any variables of interest of RQ2
 orclu.v2 <- orclu.l %>%
-    dplyr::select(PSEUDONYM, VISIT, nbCovInfections, CES_D_SCALE_CES_D, cat_CESD, MDD, GAD_7_SCALE_GAD_7, cat_GAD7, PERCEIVED_STRESS_SCALE_PSS, UCLA_LONELINESS_SCALE_UCLA, BRIEF_RESILIENCE_SCORE_BRS, cat_BRS, DEMOGRAPHICS_45, DEMOGRAPHICS_46, SLEEP_ACTUALHOURS.cat, SLEEP_EFFICIENCY.cat, SLEEP_DISTURBANCE.cat, DAYTIME_DYSFUNCTION.cat, SLEEP_LATENCY.cat, PSQI_score, PSQI_score.cat) %>%
+    dplyr::select(PSEUDONYM, VISIT, nbCovInfections, CES_D_SCALE_CES_D, cat_CESD, MDD, PERCEIVED_STRESS_SCALE_PSS, UCLA_LONELINESS_SCALE_UCLA, BRIEF_RESILIENCE_SCORE_BRS, cat_BRS, DEMOGRAPHICS_45, DEMOGRAPHICS_46, SLEEP_ACTUALHOURS.cat, SLEEP_EFFICIENCY.cat, SLEEP_DISTURBANCE.cat, DAYTIME_DYSFUNCTION.cat, SLEEP_LATENCY.cat, PSQI_score, PSQI_score.cat) %>%
     filter(VISIT == 2) %>% 
     na.omit()
 
@@ -670,54 +660,6 @@ write.table(x = tabDescr.CESD, file = "Results/RQ2/Descriptive/CESD.csv", sep = 
 
 
 #### Anxiety
-
-```{r, echo = FALSE}
-tab_GAD7 <- table_nums(name = "GAD7", 
-                        caption = "Descriptive Statistics of Anxiety - All participants")
-```
-
-`r table_nums('GAD7')`
-```{R description Anxiety}
-# variables and names to be used in the descriptive table
-varGAD <- c("minio3a_adu_q_2", "minio1a_adu_q_2", "minio3e_adu_q_2")
-
-namesGAD <- c("you felt restless, jittery or nervous?", "have you been worrying excessively and worrying about multiple problems of every day life, at work, at home, in your immediate environment?", "you were particularly irritable?")
-
-
-# create descriptive table
-GAD.tab.l <- descrByCatTabPub(varVec = varGAD, nameVec = namesGAD, database = orclu.l, catVar = "VISIT", contTest = rep("kruskal", length(varGAD)), print = FALSE, addN = TRUE)
-
-
-
-# creating variable description names
-varCol.GAD <- row.names(GAD.tab.l)
-varCol.GAD <- gsub("[.][0-9]*$", "", varCol.GAD)
-varCol.GAD <- str_replace_all(varCol.GAD, pattern = "[.]", replacement = " ")
-
-
-tabDescr.GAD <- tibble("Question" = varCol.GAD , "Visit 0" = GAD.tab.l[,1], "Visit 1" = GAD.tab.l[,2], "Visit 2" = GAD.tab.l[,3], " " = GAD.tab.l[,4])
-
-# adding extra line in table for question 1.1
-tabDescr.GAD <- rbind(c("In the last 14 days (did it often happen that)", NA, NA, NA, NA), tabDescr.GAD)
-
-
-# create flextable
-ft.GAD <- tabDescr.GAD %>% 
-    flextable() %>%
-    add_header_row(values = c("", "N (%)", "P-Value"),
-  colwidths = c(1, 3, 1)) %>%
-    align(i = 1, part = "header", align = "center")
-    
-
-
-# print table
-ft.GAD
-
-
-write.table(x = tabDescr.GAD, file = "Results/RQ2/Descriptive/GAD.csv", sep = ";")
-
-```
-
 
 
 
