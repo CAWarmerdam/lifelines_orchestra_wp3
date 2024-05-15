@@ -238,13 +238,13 @@ sleep_quality <- function(q_data_list) {
     generate_mapping("sleeptimes_adu_q_1_b", timepoint_labels[30], "SLEEP_TIMETOSLEEP"),
     generate_mapping("sleepquality_adu_q_1_a", timepoint_labels[30], "SLEEP_PROBLEMS_TIME"),
     generate_mapping("sleepquality_adu_q_1_b", timepoint_labels[30], "SLEEP_PROBLEMS_WAKINGUP"),
-    generate_mapping("sleepquality_adu_q_1_c", timepoint_labels[30], "SLEEP_PROBLEMS_BREATING"),
+    generate_mapping("sleepquality_adu_q_1_c", timepoint_labels[30], "SLEEP_PROBLEMS_BREATHING"),
     generate_mapping("sleepquality_adu_q_1_d", timepoint_labels[30], "SLEEP_PROBLEMS_COUGH_SNORE"),
     generate_mapping("sleepquality_adu_q_1_e", timepoint_labels[30], "SLEEP_PROBLEMS_FEELING_HOT"),
     generate_mapping("sleepquality_adu_q_1_f", timepoint_labels[30], "SLEEP_PROBLEMS_BAD_DREAMS"),
     generate_mapping("sleepquality_adu_q_1_g", timepoint_labels[30], "SLEEP_PROBLEMS_PAIN"),
     generate_mapping("sleepquality_adu_q_1_h", timepoint_labels[30], "SLEEP_TROUBLE_STAYINGAWAKE"),
-    generate_mapping("sleepquality_adu_q_1_i", timepoint_labels[30], "SLEEP_LACKING_ENTUSIASM")
+    generate_mapping("sleepquality_adu_q_1_i", timepoint_labels[30], "SLEEP_LACKING_ENTHUSIASM")
   )
   
   # Per questionnaire, replace all the columns from above.
