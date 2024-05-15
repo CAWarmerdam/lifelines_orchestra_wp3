@@ -282,7 +282,7 @@ sleep_quality <- function(q_data_list) {
                                              SLEEP_DISTURBANCE <= 6 ~ 1,
                                              SLEEP_DISTURBANCE <= 13 ~ 2,
                                              SLEEP_DISTURBANCE > 13 ~ 3),
-           DAYTIME_DYSFUNCTION = SLEEP_TROUBLE_STAYINGAWAKE + SLEEP_LACKING_ENTUSIASM,
+           DAYTIME_DYSFUNCTION = SLEEP_TROUBLE_STAYINGAWAKE + SLEEP_LACKING_ENTHUSIASM,
            DAYTIME_DYSFUNCTION.cat = case_when(DAYTIME_DYSFUNCTION == 0 ~ 0,
                                            DAYTIME_DYSFUNCTION <= 2 ~ 1,
                                            DAYTIME_DYSFUNCTION <= 4 ~ 2,
