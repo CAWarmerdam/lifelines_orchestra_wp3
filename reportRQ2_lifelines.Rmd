@@ -119,14 +119,6 @@ orclu.l[, GAD.col] <- lapply(orclu.l[,GAD.col], factor, ordered = TRUE,
 # changing factor order GAD-7 cat
 orclu.l$cat_GAD7 <- factor(orclu.l$cat_GAD7, levels = c("None", "Mild", "Moderate", "Severe"))
 
-# column numbers of PSS variable
-PSS.names <- c("LN_66822_8", "LN_66824_4", "LN_66825_1", "LN_66830_1")
-
-# changing factor level order of PSS variables
-orclu.l[, PSS.names] <- lapply(orclu.l[,PSS.names], factor, ordered = TRUE,
-              levels=c("Never", "Almost never", "Sometimes", "Fairly often", "Very often"))
-
-
 # column numbers of UCLA variable
 UCLA.col <- which(startsWith(colnames(orclu.l), "UCLA") == TRUE)[-1]
 
@@ -211,7 +203,7 @@ orclu.l$MDD <- factor(orclu.l$MDD, levels = c(0,1), labels = c("No", "Yes"))
 # Last wave
 # include only participants who had no missing values in any variables of interest of RQ2
 orclu.v2 <- orclu.l %>%
-    dplyr::select(PSEUDONYM, VISIT, nbCovInfections, CES_D_SCALE_CES_D, cat_CESD, MDD, GAD_7_SCALE_GAD_7, cat_GAD7, PERCEIVED_STRESS_SCALE_PSS, UCLA_LONELINESS_SCALE_UCLA, BRIEF_RESILIENCE_SCORE_BRS, cat_BRS, DEMOGRAPHICS_45, DEMOGRAPHICS_46, SLEEP_ACTUALHOURS.cat, SLEEP_EFFICIENCY.cat, SLEEP_DISTURBANCE.cat, DAYTIME_DYSFUNCTION.cat, SLEEP_LATENCY.cat, PSQI_score, PSQI_score.cat) %>%
+    dplyr::select(PSEUDONYM, VISIT, nbCovInfections, CES_D_SCALE_CES_D, cat_CESD, MDD, GAD_7_SCALE_GAD_7, cat_GAD7, UCLA_LONELINESS_SCALE_UCLA, BRIEF_RESILIENCE_SCORE_BRS, cat_BRS, DEMOGRAPHICS_45, DEMOGRAPHICS_46, SLEEP_ACTUALHOURS.cat, SLEEP_EFFICIENCY.cat, SLEEP_DISTURBANCE.cat, DAYTIME_DYSFUNCTION.cat, SLEEP_LATENCY.cat, PSQI_score, PSQI_score.cat) %>%
     filter(VISIT == 2) %>% 
     na.omit()
 
@@ -796,7 +788,7 @@ fun_med <- function(indepVar, medVar, indepName, medName, nMed = 1){
     expData <- neImpute(as.formula(paste("nbCovInfections ~", indepVar, "+", medVar,"+ DEMOGRAPHICS_45 + DEMOGRAPHICS_46")), data = orclu.v2, family = poisson, nMed = nMed)
     
     
-    neMod <- medflex::neModel(as.formula(paste("nbCovInfections ~ ", colnames(expData)[2], "+" ,colnames(expData)[3], "+ DEMOGRAPHICS_45 + DEMOGRAPHICS_46")), family = poisson, expData = expData, se = "boot", nboot = 1000, parallel = "multicore", ncpus = detectCores())
+    neMod <- medflex::neModel(as.formula(paste("nbCovInfections ~ ", colnames(expData)[2], "+" ,colnames(expData)[3], "+ DEMOGRAPHICS_45 + DEMOGRAPHICS_46")), family = poisson, expData = expData, se = "robust", parallel = "multicore", ncpus = detectCores())
     
     saveRDS(neMod, file=paste0("Results/RQ2/Mediation/neMod_",indepName, "_", medName,".RData"))
     
