@@ -74,6 +74,9 @@ orclu.l <- read.csv("../out/derived_variables_RQ2.tsv", stringsAsFactors=TRUE, s
 ```{r data manipulation: factors}
 # change order of factor levels
 
+# Please rescale the UCLA loneliness scale at the beginning of your R code, so the scaled scores are also used in the descriptive tables
+orclu.l$UCLA_LONELINESS_SCALE_UCLA <- orclu.l$UCLA_LONELINESS_SCALE_UCLA/9
+
 # Marital status
 orclu.l$DEMOGRAPHICS_47 <- factor(orclu.l$DEMOGRAPHICS_47,
                                                 levels = c("Single", "Married", "Registered partnership", "Partnership", "Divorced", "Widowed", "Other status - Please specify"), labels = c("Single", "Married", "Registered partnership", "Partnership", "Divorced", "Widowed", "Other status"))
@@ -723,913 +726,165 @@ write.table(x = tabDescr.UCLA, file = "Results/RQ2/Descriptive/UCLA.csv", sep = 
 
 
 ## Mediation Analysis
-```{r function for mediation analysis}
-
-fun_med <- function(indepVar, medVar, indepName, medName, nMed = 1){
-    
-    
-    expData <- neImpute(as.formula(paste("nbCovInfections ~", indepVar, "+", medVar,"+ DEMOGRAPHICS_45 + DEMOGRAPHICS_46")), data = orclu.v2, family = poisson, nMed = nMed)
-    
-    
-    neMod <- medflex::neModel(as.formula(paste("nbCovInfections ~ ", colnames(expData)[2], "+" ,colnames(expData)[3], "+ DEMOGRAPHICS_45 + DEMOGRAPHICS_46")), family = poisson, expData = expData, se = "robust", parallel = "multicore", ncpus = detectCores())
-    
-    saveRDS(neMod, file=paste0("Results/RQ2/Mediation/neMod_",indepName, "_", medName,".RData"))
-    
-    
-    return(neMod)
-
-}
-```
-
-
-```{r function to put results of mediation into tables}
-fig_fun <- function(neMod, indepVar, indepName, medName){
-
-    med <- data.frame(summary(neMod)$coefficients)
-    med <- round(med, digits = 3)
-    
-    if(is.factor(orclu.v2[, indepVar])){
-            catg <- length(levels(orclu.v2[, indepVar]))-1
-    }else{
-        catg <- 1
-    }
-
-    
-    med <- data.frame("Variables" = c("Intercept", paste(indepName, " - direct effect", 1:catg), paste(indepName, " - indirect effect", 1:catg), "Sex - Male", "Age"), med)
-    
-    colnames(med) <- c("Variables", "Estimate", "Std. Error", "z-Value", "p-Value")
-    
-        
-    # save table
-    write.table(x = med, file = paste0("Results/RQ2/Mediation/RQ2_", indepName, "_", medName,".csv"), sep = ";", row.names = FALSE)
-    
-    # create flextable
-    tabmed <- med %>% flextable() %>%
-        add_footer_lines(paste("Observations used = ", dim(neMod$neModelFit$model)[1]/length(levels(orclu.v2[, indepVar]))))
-    
-
-    return(tabmed)
-}
-
-```
-
-
-```{r function to put ANOVA results in table}
-
-tabAOV <- function(neMod, indepName, medName){
-   taov <- Anova(neMod) %>% 
-    round(digits = 3)  %>%
-    rownames_to_column("Effects") 
-
-    taov[, "Effects"] <- c(paste(indepName, "- direct effect"), paste(indepName, "- indirect effect"), "Sex", "Age")
-
-    # save table
-    write.table(x = taov, file = paste0("Results/RQ2/Mediation/RQ2_AOV_", indepName, "_", medName,".csv"), sep = ";", row.names = FALSE)
-
-    taov %>% 
-        flextable()
-} 
-```
-
-### Sleep Duration  
-
-```{r fun_med function for independent variable Sleep duration}
-# this part only needs to be run once; after that, it can be commented and the saved RData files in  "Results/RQ2/Mediation/" can be read (next r chunk)
-
- neMod_sleepDurMDD <- fun_med(indepVar = "SLEEP_ACTUALHOURS.cat", medVar = "MDD", indepName = "sleepDur", medName = "MDD")
-
-neMod_sleepDurLonely <- fun_med(indepVar = "SLEEP_ACTUALHOURS.cat", medVar = "UCLA_LONELINESS_SCALE_UCLA", indepName = "sleepDur", medName = "Loneliness")
-
-```
-
-```{r read mediation models- sleep duration}
-neMod_sleepDurMDD <- readRDS("Results/RQ2/Mediation/neMod_sleepDur_MDD.RData")
-neMod_sleepDurLonely <- readRDS("Results/RQ2/Mediation/neMod_sleepDur_Loneliness.RData")
-```
-
-
-
-#### MDD
-```{r, echo = FALSE}
-tab_sleepdurMDD <- table_nums(name = "sleepDurMDD", 
-                        caption = "Results of Mediation Analysis with Sleep Duration as Independent Variable, MDD as Mediator and Age and Sex as confounders")
-```
-
-`r table_nums('sleepDurMDD')`
-```{r fig_fun for sleepDurMDD}
-fig_fun(neMod = neMod_sleepDurMDD, indepVar = "SLEEP_ACTUALHOURS.cat", indepName = "SleepDuration", medName = "MDD")
-```
-
-
-
-```{r, echo = FALSE}
-tab_sleepdurMDDAOV <- table_nums(name = "sleepDurMDDAOV", 
-                        caption = "ANOVA - MDD")
-```
-
-`r table_nums('sleepDurMDDAOV')`
-```{r anova sleepDurMDD}     
-tabAOV(neMod_sleepDurMDD, indepName = "SleepDuration", medName = "MDD")
-
-```
-
-
-
-```{r, echo = FALSE}
-tab_sleepdurMDDNE <- table_nums(name = "sleepDurMDDNE", 
-                        caption = "Natural direct, indirect and total effect - MDD")
-```
-
-`r table_nums('sleepDurMDDNE')`
-```{r NE sleepDurMDD}
-# Summary of natural effects
-effects_sleepDurMDD <- summary(neEffdecomp(neMod_sleepDurMDD))$coefficients
-    
-effects_sleepDurMDD %>% 
-    data.frame() %>%
-    round(digits = 3) %>%
-    rownames_to_column("Effects") %>% 
-    flextable()
-    
-write.table(x = effects_sleepDurMDD, file = "Results/RQ2/Mediation/Effects_sleepDurMDD.csv", sep = ";", row.names = TRUE)
-```
-   
-
-
-```{r, echo = FALSE}
-fig_sleepdurMDD <- fig_nums(name = "sleepDurMDDEff", 
-                        caption = "Direct and Indirect Effects showing log OR and OR - MDD")
-```
-
-`r fig_nums('sleepDurMDDEff')`
-```{r plots effect sleepDurMDD}
-# plot direct and indirect effect
-plot(neMod_sleepDurMDD, xlab = "log odds ratio")
-plot(neMod_sleepDurMDD, xlab = "odds ratio", transf = exp)
-
-```
-
-
-
-#### Loneliness
-
-```{r, echo = FALSE}
-tab_sleepdurLoneliness <- table_nums(name = "sleepDurLoneliness", 
-                        caption = "Results of Mediation Analysis with Sleep Duration as Independent Variable, Loneliness as Mediator and Age and Sex as confounders")
-```
-
-`r table_nums('sleepDurLoneliness')`
-```{r fig_fun for sleepDurLoneliness}
-fig_fun(neMod = neMod_sleepDurLonely, indepVar = "SLEEP_ACTUALHOURS.cat", indepName = "SleepDuration", medName = "Loneliness")
-```
-
-
-
-```{r, echo = FALSE}
-tab_sleepdurLonelinessAOV <- table_nums(name = "sleepDurLonelinessAOV", 
-                        caption = "ANOVA - Loneliness")
-```
-
-`r table_nums('sleepDurLonelinessAOV')`
-```{r anova sleepDurLoneliness}     
-tabAOV(neMod_sleepDurLonely, indepName = "SleepDuration", medName = "Loneliness")
-
-```
-
-
-
-```{r, echo = FALSE}
-tab_sleepdurLonelinessNE <- table_nums(name = "sleepDurLonelinessNE", 
-                        caption = "Natural direct, indirect and total effect - Loneliness")
-```
-
-`r table_nums('sleepDurLonelinessNE')`
-```{r NE sleepDurLoneliness}
-# Summary of natural effects
-effects_sleepDurLoneliness <- summary(neEffdecomp(neMod_sleepDurLonely))$coefficients
-    
-effects_sleepDurLoneliness %>% 
-    data.frame() %>%
-    round(digits = 3) %>%
-    rownames_to_column("Effects") %>% 
-    flextable()
-    
-write.table(x = effects_sleepDurLoneliness, file = "Results/RQ2/Mediation/Effects_sleepDurLoneliness.csv", sep = ";", row.names = TRUE)
-```
-   
-
-
-```{r, echo = FALSE}
-fig_sleepdurLoneliness <- fig_nums(name = "sleepDurLonelinessEff", 
-                        caption = "Direct and Indirect Effects showing log OR and OR - Loneliness")
-```
-
-`r fig_nums('sleepDurLonelinessEff')`
-```{r plots effect sleepDurLoneliness}
-# plot direct and indirect effect
-plot(neMod_sleepDurLonely, xlab = "log odds ratio")
-plot(neMod_sleepDurLonely, xlab = "odds ratio", transf = exp)
-
-```
-
-
-
-### Sleep Efficacy
-
-```{r fun_med function for independent variable Sleep efficacy}
-# this part only needs to be run once; after that, it can be commented and the saved RData files in  "Results/RQ2/Mediation/" can be read (next r chunk)
-
-
- neMod_sleepEffMDD <- fun_med(indepVar = "SLEEP_EFFICIENCY.cat", medVar = "MDD", indepName = "sleepEff", medName = "MDD")
-
-neMod_sleepEffLonely <- fun_med(indepVar = "SLEEP_EFFICIENCY.cat", medVar = "UCLA_LONELINESS_SCALE_UCLA", indepName = "sleepEff", medName = "Loneliness")
-```
-
-```{r read mediation models- sleep efficacy}
-neMod_sleepEffMDD <- readRDS("Results/RQ2/Mediation/neMod_sleepEff_MDD.RData")
-neMod_sleepEffLonely <- readRDS("Results/RQ2/Mediation/neMod_sleepEff_Loneliness.RData")
-```
-
-
-#### MDD
-```{r, echo = FALSE}
-tab_sleepEffMDD <- table_nums(name = "sleepEffMDD", 
-                        caption = "Results of Mediation Analysis with Sleep Efficacy as Independent Variable, MDD as Mediator and Age and Sex as confounders")
-```
-
-`r table_nums('sleepEffMDD')`
-```{r fig_fun for sleepEffMDD}
-fig_fun(neMod = neMod_sleepEffMDD, indepVar = "SLEEP_EFFICIENCY.cat", indepName = "sleepEfficiency", medName = "MDD")
-```
-
-
-
-```{r, echo = FALSE}
-tab_sleepEffMDDAOV <- table_nums(name = "sleepEffMDDAOV", 
-                        caption = "ANOVA - MDD")
-```
-
-`r table_nums('sleepEffMDDAOV')`
-```{r anova sleepEffMDD}     
-tabAOV(neMod_sleepEffMDD, indepName = "sleepEfficiency", medName = "MDD")
-
-```
-
-
-
-```{r, echo = FALSE}
-tab_sleepEffMDDNE <- table_nums(name = "sleepEffMDDNE", 
-                        caption = "Natural direct, indirect and total effect - MDD")
-```
-
-`r table_nums('sleepEffMDDNE')`
-```{r NE sleepEffMDD}
-# Summary of natural effects
-effects_sleepEffMDD <- summary(neEffdecomp(neMod_sleepEffMDD))$coefficients
-    
-effects_sleepEffMDD %>% 
-    data.frame() %>%
-    round(digits = 3) %>%
-    rownames_to_column("Effects") %>% 
-    flextable()
-    
-write.table(x = effects_sleepEffMDD, file = "Results/RQ2/Mediation/Effects_sleepEffMDD.csv", sep = ";", row.names = TRUE)
-```
-   
-
-
-```{r, echo = FALSE}
-fig_sleepEffMDD <- fig_nums(name = "sleepEffMDDEff", 
-                        caption = "Direct and Indirect Effects showing log OR and OR - MDD")
-```
-
-`r fig_nums('sleepEffMDDEff')`
-```{r plots effect sleepEffMDD}
-# plot direct and indirect effect
-plot(neMod_sleepEffMDD, xlab = "log odds ratio")
-plot(neMod_sleepEffMDD, xlab = "odds ratio", transf = exp)
-```
-
-
-
-#### Loneliness
-
-```{r, echo = FALSE}
-tab_sleepEffLoneliness <- table_nums(name = "sleepEffLoneliness", 
-                        caption = "Results of Mediation Analysis with Sleep Duration as Independent Variable, Loneliness as Mediator and Age and Sex as confounders")
-```
-
-`r table_nums('sleepEffLoneliness')`
-```{r fig_fun for sleepEffLoneliness}
-fig_fun(neMod = neMod_sleepEffLonely, indepVar = "SLEEP_EFFICIENCY.cat", indepName = "SleepEfficiency", medName = "Loneliness")
-```
-
-
-
-```{r, echo = FALSE}
-tab_sleepEffLonelinessAOV <- table_nums(name = "sleepEffLonelinessAOV", 
-                        caption = "ANOVA - Loneliness")
-```
-
-`r table_nums('sleepEffLonelinessAOV')`
-```{r anova sleepEffLoneliness}     
-tabAOV(neMod_sleepEffLonely, indepName = "SleepEfficiency", medName = "Loneliness")
-
-```
-
-
-
-```{r, echo = FALSE}
-tab_sleepEffLonelinessNE <- table_nums(name = "sleepEffLonelinessNE", 
-                        caption = "Natural direct, indirect and total effect - Loneliness")
-```
-
-`r table_nums('sleepEffLonelinessNE')`
-```{r NE sleepEffLoneliness}
-# Summary of natural effects
-effects_sleepEffLoneliness <- summary(neEffdecomp(neMod_sleepEffLonely))$coefficients
-    
-effects_sleepEffLoneliness %>% 
-    data.frame() %>%
-    round(digits = 3) %>%
-    rownames_to_column("Effects") %>% 
-    flextable()
-    
-write.table(x = effects_sleepEffLoneliness, file = "Results/RQ2/Mediation/Effects_sleepEffLoneliness.csv", sep = ";", row.names = TRUE)
-```
-   
-
-
-```{r, echo = FALSE}
-fig_sleepEffLoneliness <- fig_nums(name = "sleepEffLonelinessEff", 
-                        caption = "Direct and Indirect Effects showing log OR and OR - Loneliness")
-```
-
-`r fig_nums('sleepEffLonelinessEff')`
-```{r plots effect sleepEffLoneliness}
-# plot direct and indirect effect
-plot(neMod_sleepEffLonely, xlab = "log odds ratio")
-plot(neMod_sleepEffLonely, xlab = "odds ratio", transf = exp)
-
-```
-
-
-### Sleep Disturbance
-
-```{r fun_med function for independent variable Sleep disturbance}
-# this part only needs to be run once; after that, it can be commented and the saved RData files in  "Results/RQ2/Mediation/" can be read (next r chunk)
-
-
-neMod_sleepDistMDD <- fun_med(indepVar = "SLEEP_DISTURBANCE.cat", medVar = "MDD", indepName = "sleepDist", medName = "MDD")
-
-neMod_sleepDistLonely <- fun_med(indepVar = "SLEEP_DISTURBANCE.cat", medVar = "UCLA_LONELINESS_SCALE_UCLA", indepName = "sleepDist", medName = "Loneliness")
-
-```
-
-```{r read mediation models- sleep disturbance}
-neMod_sleepDistMDD <- readRDS("Results/RQ2/Mediation/neMod_sleepDist_MDD.RData")
-neMod_sleepDistLonely <- readRDS("Results/RQ2/Mediation/neMod_sleepDist_Loneliness.RData")
-```
-
-
-#### MDD
-```{r, echo = FALSE}
-tab_sleepDistMDD <- table_nums(name = "sleepDistMDD", 
-                        caption = "Results of Mediation Analysis with Sleep Disturbance as Independent Variable, MDD as Mediator and Age and Sex as confounders")
-```
-
-`r table_nums('sleepDistMDD')`
-```{r fig_fun for sleepDistMDD}
-fig_fun(neMod = neMod_sleepDistMDD, indepVar = "SLEEP_DISTURBANCE.cat", indepName = "sleepDisturbance", medName = "MDD")
-```
-
-
-
-```{r, echo = FALSE}
-tab_sleepDistMDDAOV <- table_nums(name = "sleepDistMDDAOV", 
-                        caption = "ANOVA - MDD")
-```
 
-`r table_nums('sleepDistMDDAOV')`
-```{r anova sleepDistMDD}     
-tabAOV(neMod_sleepDistMDD, indepName = "sleepDisturbance", medName = "MDD")
-```
-
-
-
-```{r, echo = FALSE}
-tab_sleepDistMDDNE <- table_nums(name = "sleepDistMDDNE", 
-                        caption = "Natural direct, indirect and total effect - MDD")
-```
-
-`r table_nums('sleepDistMDDNE')`
-```{r NE sleepDistMDD}
-# Summary of natural effects
-effects_sleepDistMDD <- summary(neEffdecomp(neMod_sleepDistMDD))$coefficients
-    
-effects_sleepDistMDD %>% 
-    data.frame() %>%
-    round(digits = 3) %>%
-    rownames_to_column("Effects") %>% 
-    flextable()
-    
-write.table(x = effects_sleepDistMDD, file = "Results/RQ2/Mediation/Effects_sleepDistMDD.csv", sep = ";", row.names = TRUE)
-```
-   
-
-
-```{r, echo = FALSE}
-fig_sleepDistMDD <- fig_nums(name = "sleepDistMDDEff", 
-                        caption = "Direct and Indirect Effects showing log OR and OR - MDD")
-```
-
-`r fig_nums('sleepDistMDDEff')`
-```{r plots effect sleepDistMDD}
-# plot direct and indirect effect
-plot(neMod_sleepDistMDD, xlab = "log odds ratio")
-plot(neMod_sleepDistMDD, xlab = "odds ratio", transf = exp)
-```
-
-
-
-
-
-#### Loneliness
-
-```{r, echo = FALSE}
-tab_sleepDistLoneliness <- table_nums(name = "sleepDistLoneliness", 
-                        caption = "Results of Mediation Analysis with Sleep Duration as Independent Variable, Loneliness as Mediator and Age and Sex as confounders")
-```
-
-`r table_nums('sleepDistLoneliness')`
-```{r fig_fun for sleepDistLoneliness}
-fig_fun(neMod = neMod_sleepDistLonely, indepVar = "SLEEP_DISTURBANCE.cat", indepName = "sleepDisturbance", medName = "Loneliness")
-```
-
-
-
-```{r, echo = FALSE}
-tab_sleepDistLonelinessAOV <- table_nums(name = "sleepDistLonelinessAOV", 
-                        caption = "ANOVA - Loneliness")
-```
-
-`r table_nums('sleepDistLonelinessAOV')`
-```{r anova sleepDistLoneliness}     
-tabAOV(neMod_sleepDistLonely, indepName = "sleepDisturbance", medName = "Loneliness")
-
-```
-
-
-
-```{r, echo = FALSE}
-tab_sleepDistLonelinessNE <- table_nums(name = "sleepDistLonelinessNE", 
-                        caption = "Natural direct, indirect and total effect - Loneliness")
-```
-
-`r table_nums('sleepDistLonelinessNE')`
-```{r NE sleepDistLoneliness}
-# Summary of natural effects
-effects_sleepDistLoneliness <- summary(neEffdecomp(neMod_sleepDistLonely))$coefficients
-    
-effects_sleepDistLoneliness %>% 
-    data.frame() %>%
-    round(digits = 3) %>%
-    rownames_to_column("Effects") %>% 
-    flextable()
-    
-write.table(x = effects_sleepDistLoneliness, file = "Results/RQ2/Mediation/Effects_sleepDistLoneliness.csv", sep = ";", row.names = TRUE)
-```
-   
-
-
-```{r, echo = FALSE}
-fig_sleepDistLoneliness <- fig_nums(name = "sleepDistLonelinessEff", 
-                        caption = "Direct and Indirect Effects showing log OR and OR - Loneliness")
-```
-
-`r fig_nums('sleepDistLonelinessEff')`
-```{r plots effect sleepDistLoneliness}
-# plot direct and indirect effect
-plot(neMod_sleepDistLonely, xlab = "log odds ratio")
-plot(neMod_sleepDistLonely, xlab = "odds ratio", transf = exp)
-
-```
-
-
-### Daytime dysfunction
-```{r fun_med function for independent variable daytime dysfunction}
-# this part only needs to be run once; after that, it can be commented and the saved RData files in  "Results/RQ2/Mediation/" can be read (next r chunk)
-
-neMod_dayDysMDD <- fun_med(indepVar = "DAYTIME_DYSFUNCTION.cat", medVar = "MDD", indepName = "DayDys", medName = "MDD")
-
-neMod_dayDysLonely <- fun_med(indepVar = "DAYTIME_DYSFUNCTION.cat", medVar = "UCLA_LONELINESS_SCALE_UCLA", indepName = "DayDys", medName = "Loneliness")
-```
-
-
-```{r read mediation models- daytime dysfunction}
-neMod_dayDysMDD <- readRDS("Results/RQ2/Mediation/neMod_dayDys_MDD.RData")
-neMod_dayDysLonely <- readRDS("Results/RQ2/Mediation/neMod_dayDys_Loneliness.RData")
-```
-
-#### MDD
-```{r, echo = FALSE}
-tab_dayDysMDD <- table_nums(name = "dayDysMDD", 
-                        caption = "Results of Mediation Analysis with Daytime Dysfunction as Independent Variable, MDD as Mediator and Age and Sex as confounders")
-```
-
-`r table_nums('dayDysMDD')`
-```{r fig_fun for dayDysMDD}
-fig_fun(neMod = neMod_dayDysMDD, indepVar = "DAYTIME_DYSFUNCTION.cat", indepName = "daytimeDysfunction", medName = "MDD")
-```
-
-
-
-```{r, echo = FALSE}
-tab_dayDysMDDAOV <- table_nums(name = "dayDysMDDAOV", 
-                        caption = "ANOVA - MDD")
-```
-
-`r table_nums('dayDysMDDAOV')`
-```{r anova dayDysMDD}     
-tabAOV(neMod_dayDysMDD, indepName = "daytimeDysfunction", medName = "MDD")
-```
-
-
-
-```{r, echo = FALSE}
-tab_dayDysMDDNE <- table_nums(name = "dayDysMDDNE", 
-                        caption = "Natural direct, indirect and total effect - MDD")
-```
-
-`r table_nums('dayDysMDDNE')`
-```{r NE dayDysMDD}
-# Summary of natural effects
-effects_dayDysMDD <- summary(neEffdecomp(neMod_dayDysMDD))$coefficients
-    
-effects_dayDysMDD %>% 
-    data.frame() %>%
-    round(digits = 3) %>%
-    rownames_to_column("Effects") %>% 
-    flextable()
-    
-write.table(x = effects_dayDysMDD, file = "Results/RQ2/Mediation/Effects_dayDysMDD.csv", sep = ";", row.names = TRUE)
-```
-   
-
-
-```{r, echo = FALSE}
-fig_dayDysMDD <- fig_nums(name = "dayDysMDDEff", 
-                        caption = "Direct and Indirect Effects showing log OR and OR - MDD")
-```
-
-`r fig_nums('dayDysMDDEff')`
-```{r plots effect dayDysMDD}
-# plot direct and indirect effect
-plot(neMod_dayDysMDD, xlab = "log odds ratio")
-plot(neMod_dayDysMDD, xlab = "odds ratio", transf = exp)
-```
-
-
-#### Loneliness
-
-```{r, echo = FALSE}
-tab_dayDysLoneliness <- table_nums(name = "dayDysLoneliness", 
-                        caption = "Results of Mediation Analysis with Sleep Duration as Independent Variable, Loneliness as Mediator and Age and Sex as confounders")
-```
-
-`r table_nums('dayDysLoneliness')`
-```{r fig_fun for dayDysLoneliness}
-fig_fun(neMod = neMod_dayDysLonely, indepVar = "DAYTIME_DYSFUNCTION.cat", indepName = "daytimeDysfunction", medName = "Loneliness")
-```
+```{r mediation analysis}
+# Code after descriptive tables
+# Model with actual hours of sleep ----------------------------------------
 
+mod.sleephours <- glm(nbCovInfections ~ SLEEP_ACTUALHOURS + DEMOGRAPHICS_45.imp +
+                   DEMOGRAPHICS_46, family = "poisson", data = data)
 
+summary(mod.sleephours)
 
-```{r, echo = FALSE}
-tab_dayDysLonelinessAOV <- table_nums(name = "dayDysLonelinessAOV", 
-                        caption = "ANOVA - Loneliness")
-```
-
-`r table_nums('dayDysLonelinessAOV')`
-```{r anova dayDysLoneliness}     
-tabAOV(neMod_dayDysLonely, indepName = "daytimeDysfunction", medName = "Loneliness")
-
-```
-
-
-
-```{r, echo = FALSE}
-tab_dayDysLonelinessNE <- table_nums(name = "dayDysLonelinessNE", 
-                        caption = "Natural direct, indirect and total effect - Loneliness")
-```
-
-`r table_nums('dayDysLonelinessNE')`
-```{r NE dayDysLoneliness}
-# Summary of natural effects
-effects_dayDysLoneliness <- summary(neEffdecomp(neMod_dayDysLonely))$coefficients
-    
-effects_dayDysLoneliness %>% 
-    data.frame() %>%
-    round(digits = 3) %>%
-    rownames_to_column("Effects") %>% 
-    flextable()
-    
-write.table(x = effects_dayDysLoneliness, file = "Results/RQ2/Mediation/Effects_dayDysLoneliness.csv", sep = ";", row.names = TRUE)
-```
-   
-
-
-```{r, echo = FALSE}
-fig_dayDysLoneliness <- fig_nums(name = "dayDysLonelinessEff", 
-                        caption = "Direct and Indirect Effects showing log OR and OR - Loneliness")
-```
-
-`r fig_nums('dayDysLonelinessEff')`
-```{r plots effect dayDysLoneliness}
-# plot direct and indirect effect
-plot(neMod_dayDysLonely, xlab = "log odds ratio")
-plot(neMod_dayDysLonely, xlab = "odds ratio", transf = exp)
-
-```
-
-
-
-### Sleep Latency
-
-```{r fun_med function for independent variable sleep latency}
-# this part only needs to be run once; after that, it can be commented and the saved RData files in  "Results/RQ2/Mediation/" can be read (next r chunk)
-
-neMod_SleepLatMDD <- fun_med(indepVar = "SLEEP_LATENCY.cat", medVar = "MDD", indepName = "SleepLat", medName = "MDD")
-
-neMod_SleepLatLonely <- fun_med(indepVar = "SLEEP_LATENCY.cat", medVar = "UCLA_LONELINESS_SCALE_UCLA", indepName = "SleepLat", medName = "Loneliness")
-```
-
-```{r read mediation models - sleep latency}
-neMod_sleepLatMDD <- readRDS("Results/RQ2/Mediation/neMod_sleepLat_MDD.RData")
-neMod_sleepLatLonely <- readRDS("Results/RQ2/Mediation/neMod_SleepLat_Loneliness.RData")
-```
-
-
-#### MDD
-```{r, echo = FALSE}
-tab_sleepLatMDD <- table_nums(name = "sleepLatMDD", 
-                        caption = "Results of Mediation Analysis with Sleep Latency as Independent Variable, MDD as Mediator and Age and Sex as confounders")
-```
-
-`r table_nums('sleepLatMDD')`
-```{r fig_fun for sleepLatMDD}
-fig_fun(neMod = neMod_sleepLatMDD, indepVar = "SLEEP_LATENCY.cat", indepName = "sleepLatency", medName = "MDD")
-```
-
-
-
-```{r, echo = FALSE}
-tab_sleepLatMDDAOV <- table_nums(name = "sleepLatMDDAOV", 
-                        caption = "ANOVA - MDD")
-```
-
-`r table_nums('sleepLatMDDAOV')`
-```{r anova sleepLatMDD}     
-tabAOV(neMod_sleepLatMDD, indepName = "sleepLatency", medName = "MDD")
-```
-
 
+res.dev <- with(mod.sleephours, cbind(res.deviance = deviance, df = df.residual, p = pchisq(deviance, df.residual,
+                                                                                 lower.tail=FALSE)))
 
-```{r, echo = FALSE}
-tab_sleepLatMDDNE <- table_nums(name = "sleepLatMDDNE", 
-                        caption = "Natural direct, indirect and total effect - MDD")
-```
-
-`r table_nums('sleepLatMDDNE')`
-```{r NE sleepLatMDD}
-# Summary of natural effects
-effects_sleepLatMDD <- summary(neEffdecomp(neMod_sleepLatMDD))$coefficients
-    
-effects_sleepLatMDD %>% 
-    data.frame() %>%
-    round(digits = 3) %>%
-    rownames_to_column("Effects") %>% 
-    flextable()
-    
-write.table(x = effects_sleepLatMDD, file = "Results/RQ2/Mediation/Effects_sleepLatMDD.csv", sep = ";", row.names = TRUE)
-```
-   
-
-
-```{r, echo = FALSE}
-fig_sleepLatMDD <- fig_nums(name = "sleepLatMDDEff", 
-                        caption = "Direct and Indirect Effects showing log OR and OR - MDD")
-```
-
-`r fig_nums('sleepLatMDDEff')`
-```{r plots effect sleepLatMDD}
-# plot direct and indirect effect
-plot(neMod_sleepLatMDD, xlab = "log odds ratio")
-plot(neMod_sleepLatMDD, xlab = "odds ratio", transf = exp)
-```
-
+# "robust" standard errors
+mod.sleephours <- coeftest(mod.sleephours, vcov = sandwich)
+mod.sleephours <- tidy(mod.sleephours)
 
-#### Loneliness
 
-```{r, echo = FALSE}
-tab_sleepLatLoneliness <- table_nums(name = "sleepLatLoneliness", 
-                        caption = "Results of Mediation Analysis with Sleep Duration as Independent Variable, Loneliness as Mediator and Age and Sex as confounders")
-```
-
-`r table_nums('sleepLatLoneliness')`
-```{r fig_fun for sleepLatLoneliness}
-fig_fun(neMod = neMod_sleepLatLonely, indepVar = "SLEEP_LATENCY.cat", indepName = "sleepLatency", medName = "Loneliness")
-```
-
-
+res <- mod.sleephours %>%
+    clean_names() %>%
+    mutate(lowerCI = mod.sleephours$estimate - 1.96 * mod.sleephours$std.error) %>%
+    mutate(upperCI = mod.sleephours$estimate + 1.96 * mod.sleephours$std.error) %>%
+    add_row(term = paste("residual deviance: df = ", res.dev[2]), estimate = res.dev[1],
+            p_value = res.dev[3])
 
-```{r, echo = FALSE}
-tab_sleepLatLonelinessAOV <- table_nums(name = "sleepLatLonelinessAOV", 
-                        caption = "ANOVA - Loneliness")
-```
+write.table(res, file = "Results/RQ2/Poisson/SleepHours.csv", sep = ";", row.names = TRUE)
 
-`r table_nums('sleepLatLonelinessAOV')`
-```{r anova sleepLatLoneliness}     
-tabAOV(neMod_sleepLatLonely, indepName = "sleepLatency", medName = "Loneliness")
 
-```
 
+# Model with actual hours of sleep and loneliness -------------------------
 
+mod.sleephours2 <- glm(nbCovInfections ~ SLEEP_ACTUALHOURS + DEMOGRAPHICS_45.imp +
+                          DEMOGRAPHICS_46 + UCLA_LONELINESS_SCALE_UCLA, family = "poisson", data = data)
 
-```{r, echo = FALSE}
-tab_sleepLatLonelinessNE <- table_nums(name = "sleepLatLonelinessNE", 
-                        caption = "Natural direct, indirect and total effect - Loneliness")
-```
+summary(mod.sleephours2)
 
-`r table_nums('sleepLatLonelinessNE')`
-```{r NE sleepLatLoneliness}
-# Summary of natural effects
-effects_sleepLatLoneliness <- summary(neEffdecomp(neMod_sleepLatLonely))$coefficients
-    
-effects_sleepLatLoneliness %>% 
-    data.frame() %>%
-    round(digits = 3) %>%
-    rownames_to_column("Effects") %>% 
-    flextable()
-    
-write.table(x = effects_sleepLatLoneliness, file = "Results/RQ2/Mediation/Effects_sleepLatLoneliness.csv", sep = ";", row.names = TRUE)
-```
-   
 
+res.dev2 <- with(mod.sleephours2, cbind(res.deviance = deviance, df = df.residual, p = pchisq(deviance, df.residual,
+                                                                                            lower.tail=FALSE)))
 
-```{r, echo = FALSE}
-fig_sleepLatLoneliness <- fig_nums(name = "sleepLatLonelinessEff", 
-                        caption = "Direct and Indirect Effects showing log OR and OR - Loneliness")
-```
+# "robust" standard errors
+mod.sleephours2 <- coeftest(mod.sleephours2, vcov = sandwich)
+mod.sleephours2 <- tidy(mod.sleephours2)
 
-`r fig_nums('sleepLatLonelinessEff')`
-```{r plots effect sleepLatLoneliness}
-# plot direct and indirect effect
-plot(neMod_sleepLatLonely, xlab = "log odds ratio")
-plot(neMod_sleepLatLonely, xlab = "odds ratio", transf = exp)
 
-```
+res2 <- mod.sleephours2 %>%
+    clean_names() %>%
+    mutate(lowerCI = mod.sleephours2$estimate - 1.96 * mod.sleephours2$std.error) %>%
+    mutate(upperCI = mod.sleephours2$estimate + 1.96 * mod.sleephours2$std.error) %>%
+    add_row(term = paste("residual deviance: df = ", res.dev2[2]), estimate = res.dev2[1],
+            p_value = res.dev2[3])
 
+write.table(res2, file = "Results/RQ2/Poisson/SleepHours2.csv", sep = ";", row.names = TRUE)
 
-### PSQI score
 
-```{r fun_med function for independent variable PSQI score}
-# this part only needs to be run once; after that, it can be commented and the saved RData files in  "Results/RQ2/Mediation/" can be read (next r chunk)
+# Model with Sleep efficacy -------------------------
 
+mod.efficacy <- glm(nbCovInfections ~ SLEEP_EFFICIENCY + DEMOGRAPHICS_45.imp +
+                           DEMOGRAPHICS_46, family = "poisson", data = data)
 
-neMod_psqiMDD <- fun_med(indepVar = "PSQI_score", medVar = "MDD", indepName = "psqi", medName = "MDD")
+summary(mod.efficacy)
 
-neMod_psqiLonely <- fun_med(indepVar = "PSQI_score", medVar = "UCLA_LONELINESS_SCALE_UCLA", indepName = "psqi", medName = "Loneliness")
-```
 
+res.dev.eff <- with(mod.efficacy, cbind(res.deviance = deviance, df = df.residual, p = pchisq(deviance, df.residual,
+                                                                                              lower.tail=FALSE)))
 
-```{r read mediation models - PSQI score}
-neMod_psqiMDD <- readRDS("Results/RQ2/Mediation/neMod_psqi_MDD.RData")
-neMod_psqiLonely <- readRDS("Results/RQ2/Mediation/neMod_psqi_Loneliness.RData")
-```
+# "robust" standard errors
+mod.efficacy <- coeftest(mod.efficacy, vcov = sandwich)
+mod.efficacy <- tidy(mod.efficacy)
 
 
+res.eff <- mod.efficacy %>%
+    clean_names() %>%
+    mutate(lowerCI = mod.efficacy$estimate - 1.96 * mod.efficacy$std.error) %>%
+    mutate(upperCI = mod.efficacy$estimate + 1.96 * mod.efficacy$std.error) %>%
+    add_row(term = paste("residual deviance: df = ", res.dev.eff[2]), estimate = res.dev.eff[1],
+            p_value = res.dev.eff[3])
 
-#### MDD
-```{r, echo = FALSE}
-tab_psqiMDD <- table_nums(name = "psqiMDD", 
-                        caption = "Results of Mediation Analysis with PSQI Score as Independent Variable, MDD as Mediator and Age and Sex as confounders")
-```
+write.table(res.eff, file = "Results/RQ2/Poisson/SleepEfficacy.csv", sep = ";", row.names = TRUE)
 
-`r table_nums('psqiMDD')`
-```{r fig_fun for psqiMDD}
-fig_fun(neMod = neMod_psqiMDD, indepVar = "PSQI_score", indepName = "PSQIScore", medName = "MDD")
-```
 
 
+# Model with Sleep efficacy and loneliness --------------------------------
 
-```{r, echo = FALSE}
-tab_psqiMDDAOV <- table_nums(name = "psqiMDDAOV", 
-                        caption = "ANOVA - MDD")
-```
+mod.efficacy2 <- glm(nbCovInfections ~ SLEEP_EFFICIENCY + DEMOGRAPHICS_45.imp +
+                        DEMOGRAPHICS_46 + UCLA_LONELINESS_SCALE_UCLA, family = "poisson", data = data)
 
-`r table_nums('psqiMDDAOV')`
-```{r anova psqiMDD}     
-tabAOV(neMod_psqiMDD, indepName = "PSQIScore", medName = "MDD")
-```
+summary(mod.efficacy2)
 
 
+res.dev.eff2 <- with(mod.efficacy2, cbind(res.deviance = deviance, df = df.residual, p = pchisq(deviance, df.residual,
+                                                                                              lower.tail=FALSE)))
 
-```{r, echo = FALSE}
-tab_psqiMDDNE <- table_nums(name = "psqiMDDNE", 
-                        caption = "Natural direct, indirect and total effect - MDD")
-```
+# "robust" standard errors
+mod.efficacy2 <- coeftest(mod.efficacy2, vcov = sandwich)
+mod.efficacy2 <- tidy(mod.efficacy2)
 
-`r table_nums('psqiMDDNE')`
-```{r NE psqiMDD}
-# Summary of natural effects
-effects_psqiMDD <- summary(neEffdecomp(neMod_psqiMDD))$coefficients
-    
-effects_psqiMDD %>% 
-    data.frame() %>%
-    round(digits = 3) %>%
-    rownames_to_column("Effects") %>% 
-    flextable()
-    
-write.table(x = effects_psqiMDD, file = "Results/RQ2/Mediation/Effects_psqiMDD.csv", sep = ";", row.names = TRUE)
-```
-   
 
+res.eff2 <- mod.efficacy2 %>%
+    clean_names() %>%
+    mutate(lowerCI = mod.efficacy2$estimate - 1.96 * mod.efficacy2$std.error) %>%
+    mutate(upperCI = mod.efficacy2$estimate + 1.96 * mod.efficacy2$std.error) %>%
+    add_row(term = paste("residual deviance: df = ", res.dev.eff2[2]), estimate = res.dev.eff2[1],
+            p_value = res.dev.eff2[3])
 
-```{r, echo = FALSE}
-fig_psqiMDD <- fig_nums(name = "psqiMDDEff", 
-                        caption = "Direct and Indirect Effects showing log OR and OR - MDD")
-```
+write.table(res.eff2, file = "Results/RQ2/Poisson/SleepEfficacy2.csv", sep = ";", row.names = TRUE)
 
-`r fig_nums('psqiMDDEff')`
-```{r plots effect psqiMDD}
-# plot direct and indirect effect
-plot(neMod_psqiMDD, xlab = "log odds ratio")
-plot(neMod_psqiMDD, xlab = "odds ratio", transf = exp)
-```
+# Model with PSQI -------------------------
 
+mod.psqi <- glm(nbCovInfections ~ PSQI_score + DEMOGRAPHICS_45.imp +
+                        DEMOGRAPHICS_46, family = "poisson", data = data)
 
+summary(mod.psqi)
 
-#### Loneliness
 
-```{r, echo = FALSE}
-tab_psqiLoneliness <- table_nums(name = "psqiLoneliness", 
-                        caption = "Results of Mediation Analysis with Sleep Duration as Independent Variable, Loneliness as Mediator and Age and Sex as confounders")
-```
+res.dev.psqi <- with(mod.psqi, cbind(res.deviance = deviance, df = df.residual, p = pchisq(deviance, df.residual,
+                                                                                              lower.tail=FALSE)))
 
-`r table_nums('psqiLoneliness')`
-```{r fig_fun for psqiLoneliness}
-fig_fun(neMod = neMod_psqiLonely, indepVar = "PSQI_score", indepName = "PSQIScore", medName = "Loneliness")
-```
+# "robust" standard errors
+mod.psqi <- coeftest(mod.psqi, vcov = sandwich)
+mod.psqi <- tidy(mod.psqi)
 
 
+res.psqi <- mod.psqi %>%
+    clean_names() %>%
+    mutate(lowerCI = mod.psqi$estimate - 1.96 * mod.psqi$std.error) %>%
+    mutate(upperCI = mod.psqi$estimate + 1.96 * mod.psqi$std.error) %>%
+    add_row(term = paste("residual deviance: df = ", res.dev.psqi[2]), estimate = res.dev.psqi[1],
+            p_value = res.dev.psqi[3])
 
-```{r, echo = FALSE}
-tab_psqiLonelinessAOV <- table_nums(name = "psqiLonelinessAOV", 
-                        caption = "ANOVA - Loneliness")
-```
+write.table(res.pqsi, file = "Results/RQ2/Poisson/PSQI.csv", sep = ";", row.names = TRUE)
 
-`r table_nums('psqiLonelinessAOV')`
-```{r anova psqiLoneliness}     
-tabAOV(neMod_psqiLonely, indepName = "PSQIScore", medName = "Loneliness")
 
-```
+# Model with PSQI and loneliness --------------------------------
 
+mod.psqi2 <- glm(nbCovInfections ~ PSQI_score + DEMOGRAPHICS_45.imp +
+                         DEMOGRAPHICS_46 + UCLA_LONELINESS_SCALE_UCLA, family = "poisson", data = data)
 
+summary(mod.psqi2)
 
-```{r, echo = FALSE}
-tab_psqiLonelinessNE <- table_nums(name = "psqiLonelinessNE", 
-                        caption = "Natural direct, indirect and total effect - Loneliness")
-```
 
-`r table_nums('psqiLonelinessNE')`
-```{r NE psqiLoneliness}
-# Summary of natural effects
-effects_psqiLoneliness <- summary(neEffdecomp(neMod_psqiLonely))$coefficients
-    
-effects_psqiLoneliness %>% 
-    data.frame() %>%
-    round(digits = 3) %>%
-    rownames_to_column("Effects") %>% 
-    flextable()
-    
-write.table(x = effects_psqiLoneliness, file = "Results/RQ2/Mediation/Effects_psqiLoneliness.csv", sep = ";", row.names = TRUE)
-```
-   
+res.dev.psqi2 <- with(mod.psqi2, cbind(res.deviance = deviance, df = df.residual, p = pchisq(deviance, df.residual,
+                                                                                                lower.tail=FALSE)))
 
+# "robust" standard errors
+mod.psqi2 <- coeftest(mod.psqi2, vcov = sandwich)
+mod.psqi2 <- tidy(mod.psqi2)
 
-```{r, echo = FALSE}
-fig_psqiLoneliness <- fig_nums(name = "psqiLonelinessEff", 
-                        caption = "Direct and Indirect Effects showing log OR and OR - Loneliness")
-```
 
-`r fig_nums('psqiLonelinessEff')`
-```{r plots effect psqiLoneliness}
-# plot direct and indirect effect
-plot(neMod_psqiLonely, xlab = "log odds ratio")
-plot(neMod_psqiLonely, xlab = "odds ratio", transf = exp)
+res.psqi2 <- mod.psqi2 %>%
+    clean_names() %>%
+    mutate(lowerCI = mod.psqi2$estimate - 1.96 * mod.psqi2$std.error) %>%
+    mutate(upperCI = mod.psqi2$estimate + 1.96 * mod.psqi2$std.error) %>%
+    add_row(term = paste("residual deviance: df = ", res.dev.psqi2[2]), estimate = res.dev.psqi2[1],
+            p_value = res.dev.psqi2[3])
 
+write.table(res.pqsi2, file = "Results/RQ2/Poisson/PSQI2.csv", sep = ";", row.names = TRUE)
 ```
-
 
 
 ## Poisson Regression
