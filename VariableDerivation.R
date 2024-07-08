@@ -154,7 +154,7 @@ number_of_long_covid_symptoms <- function(q_data_list) {
     generate_mapping("scl90som07_adu_q_2", timepoint_labels[31], "SCT_267036007_"),
     generate_mapping("fatigue_adu_q_2_a", timepoint_labels[31], "SCT_84229001_367391008_"),
     generate_mapping("scl90som01_adu_q_2", timepoint_labels[31], "SCT_25064002_"),
-    generate_mapping("symptoms_adu_q_1_s", timepoint_labels[31], "LN_75325_1_worsening"),
+    generate_mapping("symptoms_adu_q_1_s", timepoint_labels[31], "LN_75325_1_WORSENING"),
     generate_mapping("symptoms_adu_q_2_f", timepoint_labels[31], "tmp_dry_cough"),
     generate_mapping("symptoms_adu_q_2_g", timepoint_labels[31], "tmp_wet_cough"),
     generate_mapping("symptoms_adu_q_2_i1", timepoint_labels[31], "tmp_diarrhea"),
@@ -182,7 +182,7 @@ number_of_long_covid_symptoms <- function(q_data_list) {
   }, q_data_list, names(q_data_list), SIMPLIFY=F)
   
   out_table <- bind_rows(data_list_renamed) %>% 
-    mutate(across(c("SCT_267036007_", "LN_75325_1_worsening",
+    mutate(across(c("SCT_267036007_", "LN_75325_1_WORSENING",
                     "tmp_dry_cough", "tmp_wet_cough", 
                     "SCT_248657009", "tmp_stomach_pain",
                     "tmp_diarrhea", "SCT_57676002_", 
@@ -193,8 +193,8 @@ number_of_long_covid_symptoms <- function(q_data_list) {
            across(c("SCT_106168000"), ~ case_when(.x == 1 ~ T, .x == 2 ~ F)),
            SCT_49727002_ = (!is.na(tmp_dry_cough) & tmp_dry_cough) 
                             | (!is.na(tmp_wet_cough) & tmp_wet_cough),
-           SCT_62315008_ = (!is.na(tmp_dry_cough) & tmp_dry_cough) 
-                            | (!is.na(tmp_wet_cough) & tmp_wet_cough)) %>%
+           SCT_62315008_ = (!is.na(tmp_diarrhea) & tmp_diarrhea) 
+                            | (!is.na(tmp_stomach_pain) & tmp_stomach_pain)) %>%
     select(-starts_with("tmp_"))
              
     

@@ -149,21 +149,16 @@ orclu.l[, catSleepProb] <- lapply(orclu.l[,catSleepProb], factor, ordered = TRUE
 longCovSymp <-c("SCT_267036007_",
              "SCT_84229001_367391008_",
              "LN_75325_1_WORSENING",
-             "SCT_40917007_",
              "SCT_49727002_",
-             "SCT_21522001_",
              "SCT_25064002_",
              "SCT_248657009",
-             "SCT_68962001_",
              "SCT_57676002_",
              "SCT_62507009",
              "SCT_62315008_",
              "SCT_106168000",
              "SCT_404640003",
              "SCT_271807003_",
-             "SCT_44169009_",
-             "SCT_36955009_271801002_",
-             "LN_75325_1_OTH")
+             "SCT_44169009_")
 
 
 # changing factor level order of long covid symptoms variables
