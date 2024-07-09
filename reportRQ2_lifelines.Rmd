@@ -66,7 +66,9 @@ set_flextable_defaults(font.size = 8, line_spacing = 0.8, table.layout = 'autofi
 
 ```{r loading derived data}
 # long format dataset (inlcuding 3 waves: COVQ24, COVQ27 and COVQ29)
-orclu.l <- read.csv("../out/derived_variables_RQ2.tsv", stringsAsFactors=TRUE, sep="\t")
+orclu.l <- read.csv("../out/derived_variables_RQ2.tsv", stringsAsFactors=TRUE, sep="\t") %>%
+  rename(PSEUDONYM = project_pseudo_id) %>%
+  mutate(VISIT=2)
 ```
 
 
@@ -164,6 +166,7 @@ longCovSymp <-c("SCT_267036007_",
 # changing factor level order of long covid symptoms variables
 orclu.l[, longCovSymp] <- lapply(orclu.l[,longCovSymp], factor, levels=c("Yes", "No"))
 
+
 orclu.l$AGGREGATED_1280 <- factor(orclu.l$AGGREGATED_1280, levels = c("Yes", "No", "Unkown"))
 
 
@@ -192,7 +195,7 @@ orclu.l$MDD <- factor(orclu.l$MDD, levels = c(0,1), labels = c("No", "Yes"))
 # Last wave
 # include only participants who had no missing values in any variables of interest of RQ2
 orclu.v2 <- orclu.l %>%
-    dplyr::select(PSEUDONYM, VISIT, nbCovInfections, CES_D_SCALE_CES_D, cat_CESD, MDD, UCLA_LONELINESS_SCALE_UCLA, DEMOGRAPHICS_45, DEMOGRAPHICS_46, SLEEP_ACTUALHOURS.cat, SLEEP_EFFICIENCY.cat, SLEEP_DISTURBANCE.cat, DAYTIME_DYSFUNCTION.cat, SLEEP_LATENCY.cat, PSQI_score, PSQI_score.cat) %>%
+    dplyr::select(PSEUDONYM, VISIT, nbCovInfections, MDD, UCLA_LONELINESS_SCALE_UCLA, DEMOGRAPHICS_45, DEMOGRAPHICS_46, SLEEP_ACTUALHOURS.cat, SLEEP_EFFICIENCY.cat, SLEEP_DISTURBANCE.cat, DAYTIME_DYSFUNCTION.cat, SLEEP_LATENCY.cat, PSQI_score, PSQI_score.cat) %>%
     filter(VISIT == 2) %>% 
     na.omit()
 

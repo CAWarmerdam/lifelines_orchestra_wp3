@@ -143,7 +143,8 @@ number_of_covid_infections <- function(q_data_list) {
       meandate - lag(meandate) > 90 ~ T,
       TRUE ~ F
     )) %>%
-    summarise(nbCovInfections = sum(new_positive_test_date, na.rm = T), CovInfectionDates = list(meandate))
+    summarise(nbCovInfections = sum(new_positive_test_date, na.rm = T), CovInfectionDates = list(meandate),
+              AGGREGATED_1280 = nbCovInfections > 0)
   
   return(out_table)
 }
@@ -151,26 +152,38 @@ number_of_covid_infections <- function(q_data_list) {
 
 number_of_long_covid_symptoms <- function(q_data_list) {
   mapping <- bind_rows(
-    generate_mapping("scl90som07_adu_q_2", timepoint_labels[31], "SCT_267036007_"),
-    generate_mapping("fatigue_adu_q_2_a", timepoint_labels[31], "SCT_84229001_367391008_"),
-    generate_mapping("scl90som01_adu_q_2", timepoint_labels[31], "SCT_25064002_"),
-    generate_mapping("symptoms_adu_q_1_s", timepoint_labels[31], "LN_75325_1_WORSENING"),
-    generate_mapping("symptoms_adu_q_2_f", timepoint_labels[31], "tmp_dry_cough"),
-    generate_mapping("symptoms_adu_q_2_g", timepoint_labels[31], "tmp_wet_cough"),
-    generate_mapping("symptoms_adu_q_2_i1", timepoint_labels[31], "tmp_diarrhea"),
-    generate_mapping("symptoms_adu_q_2_i2", timepoint_labels[31], "tmp_stomach_pain"),
-    generate_mapping("symptoms_adu_q_1_r", timepoint_labels[31], "SCT_248657009"),
-    generate_mapping("scl90som06_adu_q_2", timepoint_labels[31], "SCT_57676002_"),
-    generate_mapping("scl90som09_adu_q_2", timepoint_labels[31], "SCT_62507009"),
-    generate_mapping("minia3b_adu_q_2", timepoint_labels[31], "SCT_106168000"),
-    generate_mapping("scl90som02_adu_q_2", timepoint_labels[31], "SCT_404640003"),
-    generate_mapping("symptoms_adu_q_1_m", timepoint_labels[31], "SCT_271807003_"),
-    generate_mapping("symptoms_adu_q_2_j", timepoint_labels[31], "SCT_44169009_")
+    generate_mapping("scl90som07_adu_q_1", timepoint_labels[1:6], "SCT_267036007_"),
+    generate_mapping("scl90som07_adu_q_2", timepoint_labels[c(7:9,11:31)], "SCT_267036007_"),
+    generate_mapping("fatigue_adu_q_1_a", timepoint_labels[1:6], "SCT_84229001_367391008_"),
+    generate_mapping("fatigue_adu_q_2_a", timepoint_labels[c(7:9,11:31)], "SCT_84229001_367391008_"),
+    generate_mapping("scl90som01_adu_q_1", timepoint_labels[1:6], "SCT_25064002_"),
+    generate_mapping("scl90som01_adu_q_2", timepoint_labels[c(7:9,11:31)], "SCT_25064002_"),
+    generate_mapping("symptoms_adu_q_1_s", timepoint_labels[27:31], "LN_75325_1_WORSENING"),
+    generate_mapping("symptoms_adu_q_1_f", timepoint_labels[1:6], "tmp_dry_cough"),
+    generate_mapping("symptoms_adu_q_2_f", timepoint_labels[c(7:9,11:31)], "tmp_dry_cough"),
+    generate_mapping("symptoms_adu_q_1_g", timepoint_labels[1:6], "tmp_wet_cough"),
+    generate_mapping("symptoms_adu_q_2_g", timepoint_labels[c(7:9,11:31)], "tmp_wet_cough"),
+    generate_mapping("symptoms_adu_q_1_i1", timepoint_labels[1:6], "tmp_diarrhea"),
+    generate_mapping("symptoms_adu_q_2_i1", timepoint_labels[c(7:9,11:31)], "tmp_diarrhea"),
+    generate_mapping("symptoms_adu_q_1_i2", timepoint_labels[1:6], "tmp_stomach_pain"),
+    generate_mapping("symptoms_adu_q_2_i2", timepoint_labels[c(7:9,11:31)], "tmp_stomach_pain"),
+    generate_mapping("symptoms_adu_q_1_r", timepoint_labels[23:31], "SCT_248657009"),
+    generate_mapping("scl90som06_adu_q_1", timepoint_labels[1:6], "SCT_57676002_"),
+    generate_mapping("scl90som06_adu_q_2", timepoint_labels[c(7:9,11:31)], "SCT_57676002_"),
+    generate_mapping("scl90som09_adu_q_1", timepoint_labels[1:6], "SCT_62507009"),
+    generate_mapping("scl90som09_adu_q_2", timepoint_labels[c(7:9,11:31)], "SCT_62507009"),
+    generate_mapping("minia3b_adu_q_1", timepoint_labels[1:6], "SCT_106168000"),
+    generate_mapping("minia3b_adu_q_2", timepoint_labels[c(7:9,11:31)], "SCT_106168000"),
+    generate_mapping("scl90som02_adu_q_1", timepoint_labels[1:6], "SCT_404640003"),
+    generate_mapping("scl90som02_adu_q_2", timepoint_labels[c(7:9,11:31)], "SCT_404640003"),
+    generate_mapping("symptoms_adu_q_1_m", timepoint_labels[c(7:9,11:31)], "SCT_271807003_"),
+    generate_mapping("symptoms_adu_q_1_j", timepoint_labels[1:6], "SCT_44169009_"),
+    generate_mapping("symptoms_adu_q_2_j", timepoint_labels[c(7:9,11:31)], "SCT_44169009_")
     )
   
-  # Per questionnaire, replace all the columns from above.
   q_data_list <- q_data_list["covt29"]
   
+  # Per questionnaire, replace all the columns from above.
   data_list_renamed <- mapply(function(q_data, t_id) {
     named_mapping_vector <- mapping %>% 
       filter(t == t_id) %>% select(qnew, q) %>% deframe()
@@ -356,7 +369,11 @@ demographics <- function(q_data_list) {
     generate_mapping("responsedate_adu_q_1", timepoint_labels[1:31], "responsedate"),
     generate_mapping("maritalstatus_adu_q_1", timepoint_labels[c(26,28,30)], "MaritalStatus"),
     generate_mapping("employment_adu_q_4", timepoint_labels[c(28,30)], "WorkStatus"),
-    generate_mapping("migration_adu_q_1", timepoint_labels[c(28)], "migration.status")
+    generate_mapping("migration_adu_q_1", timepoint_labels[c(28)], "migration.status"),
+    generate_mapping("activity_adu_q_1_b", timepoint_labels[c(1:6)], "physical.activity"),
+    generate_mapping("activity_adu_q_2_b", timepoint_labels[c(7:9,11,14:19,21,23,25,26,27,29,31)], "physical.activity"),
+    generate_mapping("smoking_adu_q_1", timepoint_labels[c(1:6)], "smoking.status"),
+    generate_mapping("smoking_adu_q_2", timepoint_labels[c(7:9,11,14,25,26,27,29,31)], "smoking.status")
   )
   
   # Per questionnaire, replace all the columns from above.
@@ -374,10 +391,14 @@ demographics <- function(q_data_list) {
     mutate(project_pseudo_id = factor(project_pseudo_id)) %>%
     group_by(project_pseudo_id, .drop=F) %>%
     summarise(DEMOGRAPHICS_45.imp = case_when(all(na.omit(gender) == "MALE") ~ "Male", all(na.omit(gender) == "FEMALE") ~ "Female"),
+              DEMOGRAPHICS_45 = DEMOGRAPHICS_45.imp,
            DEMOGRAPHICS_46 = max(age, na.rm = T),
            DEMOGRAPHICS_47 = last(na.omit(MaritalStatus)),
            DEMOGRAPHICS_61 = last(na.omit(WorkStatus)),
-           migration.status = last(na.omit(migration.status))) %>%
+           migration.status = last(na.omit(migration.status)),
+           physical.activity = last(na.omit(physical.activity)),
+           smoking.status = last(na.omit(smoking.status))
+    ) %>%
     mutate(
            DEMOGRAPHICS_47 = case_when(
              DEMOGRAPHICS_47 == 1 ~ "Single",
@@ -429,6 +450,25 @@ main <- function(argv=NULL) {
   configurationFilePath <- "config.orchestra_wp3.json"
   configuration <- fromJSON(file = configurationFilePath)
   covidResFilePerWeek <- configuration$covidResFilePerWeek
+  phenotypes <- configuration$phenotypes
+  
+  q_data_list_general <- list()
+  
+  for (qLabel in names(phenotypes)) {
+    print(paste0("Loading: ", qLabel, ", ", phenotypes[qLabel]))
+    
+    q_data_list_general[[qLabel]] <- fread(
+      as.character(covidResFilePerWeek[weekLabel]),
+      quote="\"", na.strings = c('"$4"', '"$5"', '"$6"', '"$7"'))
+    
+  }
+  
+  education_table <- bind_rows(q_data_list_general, .id = "questionnaire") %>% 
+    mutate(date = as.Date(date))
+    group_by(project_pseudo_id) %>%
+    arrange(date)
+    summarise(education = last(na.omit(educational_attainment_adu_c_1))) %>%
+    mutate(education = case_when(education == "low" ~ "Basic", education == "middle" ~ "Intermediate", education == "high" ~ "Advanced"))
   
   # Read every questionnaire
   q_data_list <- list()
@@ -444,13 +484,16 @@ main <- function(argv=NULL) {
   
   names(q_data_list) <- timepoint_labels
   
-  # 
   number_of_covid_infections_tib <- number_of_covid_infections(q_data_list)
   number_of_long_covid_symptoms_tib <- number_of_long_covid_symptoms(q_data_list)
   loneliness_scale_tib <- loneliness_scale(q_data_list)
   sleep_quality_tib <- sleep_quality(q_data_list)
   depression_tib <- depression(q_data_list)
   demographic_tib <- demographics(q_data_list)
+  demographic_tib <- demographic_tib %>%
+    left_join(education_table, by = c("project_pseudo_id"))
+  print(table(education_table$education))
+  print(table(demographic_tib$education))
   
   derived <- purrr::reduce(list(number_of_covid_infections_tib, number_of_long_covid_symptoms_tib, loneliness_scale_tib, sleep_quality_tib, depression_tib, demographic_tib), 
                 dplyr::full_join, by = 'project_pseudo_id')  
