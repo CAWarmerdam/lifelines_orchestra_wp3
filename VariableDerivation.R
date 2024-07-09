@@ -464,11 +464,11 @@ main <- function(argv=NULL) {
   }
   
   education_table <- bind_rows(q_data_list_general, .id = "questionnaire") %>% 
-    mutate(date = as.Date(date))
+    mutate(date = as.Date(paste0(date, "-01"), "%Y-%m-%d")) %>%
     group_by(project_pseudo_id) %>%
-    arrange(date)
+    arrange(date) %>%
     summarise(education = last(na.omit(educational_attainment_adu_c_1))) %>%
-    mutate(education = case_when(education == "low" ~ "Basic", education == "middle" ~ "Intermediate", education == "high" ~ "Advanced"))
+    mutate(education = case_when(education == 1 ~ "Basic", education == 2 ~ "Intermediate", education == 3 ~ "Advanced"))
   
   # Read every questionnaire
   q_data_list <- list()
@@ -491,9 +491,9 @@ main <- function(argv=NULL) {
   depression_tib <- depression(q_data_list)
   demographic_tib <- demographics(q_data_list)
   demographic_tib <- demographic_tib %>%
-    left_join(education_table, by = c("project_pseudo_id"))
-  print(table(education_table$education))
-  print(table(demographic_tib$education))
+    left_join(education_table %>% collect(), by = c("project_pseudo_id"))
+  print(table(education_table %>% pull(education)))
+  print(table(demographic_tib %>% pull(education)))
   
   derived <- purrr::reduce(list(number_of_covid_infections_tib, number_of_long_covid_symptoms_tib, loneliness_scale_tib, sleep_quality_tib, depression_tib, demographic_tib), 
                 dplyr::full_join, by = 'project_pseudo_id')  
