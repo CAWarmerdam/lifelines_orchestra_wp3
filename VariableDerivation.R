@@ -458,7 +458,7 @@ main <- function(argv=NULL) {
     print(paste0("Loading: ", qLabel, ", ", phenotypes[qLabel]))
     
     q_data_list_general[[qLabel]] <- fread(
-      as.character(covidResFilePerWeek[weekLabel]),
+      as.character(phenotypes[qLabel]),
       quote="\"", na.strings = c('"$4"', '"$5"', '"$6"', '"$7"'))
     
   }
