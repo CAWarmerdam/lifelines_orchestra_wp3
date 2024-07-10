@@ -286,7 +286,7 @@ sleep_quality <- function(q_data_list) {
                                              SLEEP_ACTUALHOURS >= 5 ~ 2,
                                              SLEEP_ACTUALHOURS < 5 ~ 3),
            HOURS_IN_BED = time_length(hms(sleeptimes_end) - hms(sleeptimes_start), unit="hours") + 24,
-           SLEEP_EFFICIENCY = sleeptimes_actual / HOURS_IN_BED * 100,
+           SLEEP_EFFICIENCY = SLEEP_ACTUALHOURS / HOURS_IN_BED * 100,
            SLEEP_EFFICIENCY.cat = case_when(SLEEP_EFFICIENCY >= 85 ~ 0,
                                              SLEEP_EFFICIENCY >= 75 ~ 1,
                                              SLEEP_EFFICIENCY >= 65 ~ 2,
