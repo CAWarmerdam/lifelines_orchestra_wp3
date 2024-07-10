@@ -281,12 +281,12 @@ sleep_quality <- function(q_data_list) {
     "SLEEP_LATENCY.cat")
   
   out_table <- bind_rows(data_list_renamed) %>% 
-    mutate(SLEEP_ACTUALHOURS.cat = case_when(SLEEP_ACTUALHOURS >= 7 ~ 0,
-                                             SLEEP_ACTUALHOURS >= 6 ~ 1,
-                                             SLEEP_ACTUALHOURS >= 5 ~ 2,
-                                             SLEEP_ACTUALHOURS < 5 ~ 3),
+    mutate(SLEEP_ACTUALHOURS.cat = case_when(sleeptimes_actual >= 7 ~ 0,
+                                             sleeptimes_actual >= 6 ~ 1,
+                                             sleeptimes_actual >= 5 ~ 2,
+                                             sleeptimes_actual < 5 ~ 3),
            HOURS_IN_BED = time_length(hms(sleeptimes_end) - hms(sleeptimes_start), unit="hours") + 24,
-           SLEEP_EFFICIENCY = SLEEP_ACTUALHOURS / HOURS_IN_BED * 100,
+           SLEEP_EFFICIENCY = sleeptimes_actual / HOURS_IN_BED * 100,
            SLEEP_EFFICIENCY.cat = case_when(SLEEP_EFFICIENCY >= 85 ~ 0,
                                              SLEEP_EFFICIENCY >= 75 ~ 1,
                                              SLEEP_EFFICIENCY >= 65 ~ 2,
@@ -321,21 +321,27 @@ sleep_quality <- function(q_data_list) {
 
 depression <- function(q_data_list) {
   mapping <- bind_rows(
-    generate_mapping("minia1_adu_q_1", timepoint_labels[1:6], "DepressedMood"),
-    generate_mapping("minia1_adu_q_2", timepoint_labels[c(7:11, 13:31)], "DepressedMood"),
+    generate_mapping("minia1_adu_q_1", timepoint_labels[1:6], "minia1_adu_q_2"),
+    generate_mapping("minia1_adu_q_2", timepoint_labels[c(7:11, 13:31)], "minia1_adu_q_2"),
     generate_mapping("minia3d_adu_q_1", timepoint_labels[c(10:11, 13:31)], "DecreasedInterestPleasure"),
     generate_mapping("minia2_adu_q_1", timepoint_labels[1:6], "FatigueLossEnergy"),
     generate_mapping("minia2_adu_q_2", timepoint_labels[c(7:11, 13:31)], "FatigueLossEnergy"),
-    generate_mapping("minia3a_adu_q_1", timepoint_labels[1:6], "ChangesWeightAppetite"),
-    generate_mapping("minia3a_adu_q_2", timepoint_labels[c(7:11, 13:31)], "ChangesWeightAppetite"),
-    generate_mapping("minia3f_adu_q_1", timepoint_labels[1:6], "DiminishedConcentration"),
-    generate_mapping("minia3f_adu_q_2", timepoint_labels[c(7:11, 13:31)], "DiminishedConcentration"),
-    generate_mapping("minia3b_adu_q_1", timepoint_labels[1:6], "ChangesSleep"),
-    generate_mapping("minia3b_adu_q_2", timepoint_labels[c(7:11, 13:31)], "ChangesSleep"),
+    generate_mapping("minia3a_adu_q_1", timepoint_labels[1:6], "minia3a_adu_q_2"),
+    generate_mapping("minia3a_adu_q_2", timepoint_labels[c(7:11, 13:31)], "minia3a_adu_q_2"),
+    generate_mapping("minia3f_adu_q_1", timepoint_labels[1:6], "minia3f_adu_q_2"),
+    generate_mapping("minia3f_adu_q_2", timepoint_labels[c(7:11, 13:31)], "minia3f_adu_q_2"),
+    generate_mapping("minia3b_adu_q_1", timepoint_labels[1:6], "minia3b_adu_q_2"),
+    generate_mapping("minia3b_adu_q_2", timepoint_labels[c(7:11, 13:31)], "minia3b_adu_q_2"),
     generate_mapping("minia3e_adu_q_1", timepoint_labels[1:6], "Worthlessness"),
     generate_mapping("minia3e_adu_q_2", timepoint_labels[c(7:11, 13:31)], "Worthlessness"),
     generate_mapping("minia3c_adu_q_1", timepoint_labels[1:6], "AgitationRetardation"),
     generate_mapping("minia3c_adu_q_2", timepoint_labels[c(7:11, 13:31)], "AgitationRetardation"),
+    generate_mapping("minio1a_adu_q_1", timepoint_labels[1:6], "minio1a_adu_q_2"),
+    generate_mapping("minio1a_adu_q_2", timepoint_labels[c(7:11, 13:31)], "minio1a_adu_q_2"),
+    generate_mapping("minio3a_adu_q_1", timepoint_labels[1:6], "minio3a_adu_q_2"),
+    generate_mapping("minio3a_adu_q_2", timepoint_labels[c(7:11, 13:31)], "minio3a_adu_q_2"),
+    generate_mapping("minio3e_adu_q_1", timepoint_labels[1:6], "minio3e_adu_q_2"),
+    generate_mapping("minio3e_adu_q_2", timepoint_labels[c(7:11, 13:31)], "minio3e_adu_q_2"),
     generate_mapping("responsedate_adu_q_1", timepoint_labels[1:31], "responsedate")
   )
   
@@ -355,12 +361,12 @@ depression <- function(q_data_list) {
   out_table <- bind_rows(data_list_renamed) %>% 
     mutate(project_pseudo_id = factor(project_pseudo_id)) %>%
     group_by(project_pseudo_id, .drop=F) %>%
-    mutate(mandatory_symptoms = DepressedMood == 1 | DecreasedInterestPleasure == 1,
-           sum_of_symptoms = rowSums(across(all_of(c("DepressedMood", "DecreasedInterestPleasure", "FatigueLossEnergy", "ChangesWeightAppetite", "DiminishedConcentration", "ChangesSleep", "Worthlessness", "AgitationRetardation")))),
+    mutate(mandatory_symptoms = minia1_adu_q_2 == 1 | DecreasedInterestPleasure == 1,
+           sum_of_symptoms = rowSums(across(all_of(c("minia1_adu_q_2", "DecreasedInterestPleasure", "FatigueLossEnergy", "minia3a_adu_q_2", "minia3f_adu_q_2", "minia3b_adu_q_2", "Worthlessness", "AgitationRetardation")))),
            MDD = case_when(mandatory_symptoms & sum_of_symptoms >= 4 ~ "Yes", !is.na(mandatory_symptoms) & !is.na(sum_of_symptoms) ~ "No")) %>%
     fill(MDD) %>%
     slice_max(responsedate, with_ties=F) %>%
-    select(project_pseudo_id, MDD)
+    select(project_pseudo_id, MDD, starts_with("mini"))
   
   return(out_table)
 }

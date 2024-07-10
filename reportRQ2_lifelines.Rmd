@@ -514,18 +514,17 @@ tabDescrBase <- tibble("Characteristics" = varCol , "Baseline" = char.tab[,1])
 # tabDescrBase[which(tabDescrBase$Characteristics == "Hours of physical activity per week"),3] <- paste0(round(median(orclu.l$physical.activity[orclu.l$VISIT == "1"], na.rm = TRUE),2), " (", quantile(orclu.l$physical.activity[orclu.l$VISIT == "1"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$physical.activity[orclu.l$VISIT == "1"], na.rm = TRUE)[[4]], "); ", "N=",table(is.na(orclu.l$physical.activity[orclu.l$VISIT == "1"]))[[1]])
 
 # V2
-tabDescrBase[which(tabDescrBase$Characteristics == "Hours of physical activity per week"),1] <- paste0(round(median(orclu.l$physical.activity[orclu.l$VISIT == "2"], na.rm = TRUE),2), " (", quantile(orclu.l$physical.activity[orclu.l$VISIT == "2"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$physical.activity[orclu.l$VISIT == "2"], na.rm = TRUE)[[1]], "); ", "N=",table(is.na(orclu.l$physical.activity[orclu.l$VISIT == "2"]))[[1]])
+tabDescrBase[which(tabDescrBase$Characteristics == "Hours of physical activity per week"),2] <- paste0(round(median(orclu.l$physical.activity[orclu.l$VISIT == "2"], na.rm = TRUE),2), " (", quantile(orclu.l$physical.activity[orclu.l$VISIT == "2"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$physical.activity[orclu.l$VISIT == "2"], na.rm = TRUE)[[4]], "); ", "N=",table(is.na(orclu.l$physical.activity[orclu.l$VISIT == "2"]))[[1]])
 
 
 # table
-# ft.base <- tabDescrBase %>% 
-#     flextable() %>%
-#     add_header_row(values = c("","Mean (SD)/ N (%)"),
-#   colwidths = c(1,1)) %>%
-#     align(i = 1, part = "header", align = "center") %>%
-#     footnote(i = which(tabDescrBase$Characteristics == "Hours of physical activity per week"), j = 1, value = as_paragraph(c("Median (Q1; Q3) and Kruskal-Wallis Test")), ref_symbols = "a")
-# 
-# ft.base
+ft.base <- tabDescrBase %>%
+    flextable() %>%
+    add_header_row(values = c("","Mean (SD)/ N (%)"), colwidths = c(1,1)) %>%
+    align(i = 1, part = "header", align = "center") %>%
+    footnote(i = which(tabDescrBase$Characteristics == "Hours of physical activity per week"), j = 1, value = as_paragraph(c("Median (Q1; Q3) and Kruskal-Wallis Test")), ref_symbols = "a")
+
+ft.base
 
 
 write.table(x = tabDescrBase, file = "Results/RQ2/Descriptive/Characteristics.csv", sep = ";")
@@ -579,15 +578,15 @@ varCol.l <- gsub("[.][0-9]*$", "", varCol.l)
 varCol.l <- str_replace_all(varCol.l, pattern = "[.]", replacement = " ")
 varCol.l <- gsub("X", "", varCol.l)
 
-tabSleep.l <- tibble("Characteristics" = varCol.l , "Visit 0" = sleep.tab.l[,1], "Visit 1" = sleep.tab.l[,2], "Visit 2" = sleep.tab.l[,3], " " = sleep.tab.l[,4])
+tabSleep.l <- tibble("Characteristics" = varCol.l , "Visit 0" = sleep.tab.l[,1])
 
 # adding extra line in table for question 8.5
-tabSleep.l <- rbind(tabSleep.l[c(1:20),],c("During the past month, how often have you had trouble sleeping because you", NA, NA, NA, NA), tabSleep.l[c(21:dim(tabSleep.l)[[1]]),])
+tabSleep.l <- rbind(tabSleep.l[c(1:20),],c("During the past month, how often have you had trouble sleeping because you", NA), tabSleep.l[c(21:dim(tabSleep.l)[[1]]),])
 
 ft.l <- tabSleep.l %>% 
     flextable() %>%
     # adding extra header line
-    add_header_row(values = c("", "Mean (SD)/ N (%)", "P-Value"),colwidths = c(1, 3, 1)) %>%
+    add_header_row(values = c("", "Mean (SD)/ N (%)"),colwidths = c(1, 1)) %>%
     align(i = 1, part = "header", align = "center") 
 
 # print table
