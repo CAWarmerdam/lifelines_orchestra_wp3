@@ -281,10 +281,10 @@ sleep_quality <- function(q_data_list) {
     "SLEEP_LATENCY.cat")
   
   out_table <- bind_rows(data_list_renamed) %>% 
-    mutate(SLEEP_ACTUALHOURS.cat = case_when(sleeptimes_actual >= 7 ~ 0,
-                                             sleeptimes_actual >= 6 ~ 1,
-                                             sleeptimes_actual >= 5 ~ 2,
-                                             sleeptimes_actual < 5 ~ 3),
+    mutate(SLEEP_ACTUALHOURS.cat = case_when(SLEEP_ACTUALHOURS >= 7 ~ 0,
+                                             SLEEP_ACTUALHOURS >= 6 ~ 1,
+                                             SLEEP_ACTUALHOURS >= 5 ~ 2,
+                                             SLEEP_ACTUALHOURS < 5 ~ 3),
            HOURS_IN_BED = time_length(hms(sleeptimes_end) - hms(sleeptimes_start), unit="hours") + 24,
            SLEEP_EFFICIENCY = sleeptimes_actual / HOURS_IN_BED * 100,
            SLEEP_EFFICIENCY.cat = case_when(SLEEP_EFFICIENCY >= 85 ~ 0,
