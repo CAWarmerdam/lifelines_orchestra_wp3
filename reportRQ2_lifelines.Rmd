@@ -68,7 +68,7 @@ set_flextable_defaults(font.size = 8, line_spacing = 0.8, table.layout = 'autofi
 # long format dataset (inlcuding 3 waves: COVQ24, COVQ27 and COVQ29)
 orclu.l <- read.csv("../out/derived_variables_RQ2.tsv", stringsAsFactors=TRUE, sep="\t") %>%
   rename(PSEUDONYM = project_pseudo_id) %>%
-  mutate(VISIT=2)
+  mutate(VISIT=2, DEMOGRAPHICS_45 = DEMOGRAPHICS_45.imp)
 ```
 
 
@@ -82,9 +82,6 @@ orclu.l$UCLA_LONELINESS_SCALE_UCLA <- orclu.l$UCLA_LONELINESS_SCALE_UCLA/9
 # Marital status
 orclu.l$DEMOGRAPHICS_47 <- factor(orclu.l$DEMOGRAPHICS_47,
                                                 levels = c("Single", "Married", "Registered partnership", "Partnership", "Divorced", "Widowed", "Other status - Please specify"), labels = c("Single", "Married", "Registered partnership", "Partnership", "Divorced", "Widowed", "Other status"))
-
-
-
 
 # Employment status
 orclu.l$DEMOGRAPHICS_61 <- factor(orclu.l$DEMOGRAPHICS_61,
@@ -143,7 +140,8 @@ catSleepProb <- c("SLEEP_PROBLEMS_TIME", "SLEEP_PROBLEMS_WAKINGUP",
 
 # changing factor level order of sleep problem variables
 orclu.l[, catSleepProb] <- lapply(orclu.l[,catSleepProb], factor, ordered = TRUE,
-              levels=c("Not during the past month", "Less than once a week", "Once or twice a week", "Three or more times a week"))
+                                  levels=c(1, 2, 3, 4),
+              labels=c("Not during the past month", "Less than once a week", "Once or twice a week", "Three or more times a week"))
 
 
 
@@ -164,10 +162,10 @@ longCovSymp <-c("SCT_267036007_",
 
 
 # changing factor level order of long covid symptoms variables
-orclu.l[, longCovSymp] <- lapply(orclu.l[,longCovSymp], factor, levels=c("Yes", "No"))
+orclu.l[, longCovSymp] <- lapply(orclu.l[,longCovSymp], factor, levels=c(T,F), labels=c("Yes", "No"))
 
 
-orclu.l$AGGREGATED_1280 <- factor(orclu.l$AGGREGATED_1280, levels = c("Yes", "No", "Unkown"))
+orclu.l$AGGREGATED_1280 <- factor(case_when(is.na(orclu.l$AGGREGATED_1280) ~ "Unkown", orclu.l$AGGREGATED_1280 ~ "Yes", orclu.l$AGGREGATED_1280 == F ~ "No"), levels = c("Yes", "No", "Unkown"))
 
 
 # number of Covid infection as category
@@ -182,10 +180,9 @@ orclu.l$SLEEP_LATENCY.cat <- factor(orclu.l$SLEEP_LATENCY.cat)
 orclu.l$SLEEP_ACTUALHOURS.cat <- factor(orclu.l$SLEEP_ACTUALHOURS.cat)
 orclu.l$PSQI_score.cat <- factor(orclu.l$PSQI_score.cat)
 
-
 # MDD
-orclu.l$n.MDD <- factor(orclu.l$MDD, levels = c(0,1))
-orclu.l$MDD <- factor(orclu.l$MDD, levels = c(0,1), labels = c("No", "Yes"))
+orclu.l$n.MDD <- factor(orclu.l$MDD, levels = c("No", "Yes"), labels = c(0,1))
+orclu.l$MDD <- factor(orclu.l$MDD, levels = c("No", "Yes"), labels = c("No", "Yes"))
 
 ```
 
@@ -198,6 +195,8 @@ orclu.v2 <- orclu.l %>%
     dplyr::select(PSEUDONYM, VISIT, nbCovInfections, MDD, UCLA_LONELINESS_SCALE_UCLA, DEMOGRAPHICS_45, DEMOGRAPHICS_46, SLEEP_ACTUALHOURS.cat, SLEEP_EFFICIENCY.cat, SLEEP_DISTURBANCE.cat, DAYTIME_DYSFUNCTION.cat, SLEEP_LATENCY.cat, PSQI_score, PSQI_score.cat) %>%
     filter(VISIT == 2) %>% 
     na.omit()
+
+# not required: 
 
 
 # MDD from character to numeric (factor)
@@ -497,7 +496,7 @@ namesChar <- c("Gender", "Age", "Marital Status", "Education", "Employment Statu
 
 orclu.l$VISIT <- as.factor(orclu.l$VISIT)
 
-char.tab <- descrByCatTabPub(varChar, namesChar, catVar = "VISIT", data = orclu.l, print = FALSE, contTest = rep("anova", length((varChar))), addN = TRUE)
+char.tab <- descrTabPub(varChar, namesChar, data = orclu.l, print = FALSE, addN = TRUE)
 
 varCol <- row.names(char.tab)
 varCol <- gsub("[.][0-9]*$", "", varCol)

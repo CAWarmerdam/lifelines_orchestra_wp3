@@ -163,9 +163,10 @@ number_of_long_covid_symptoms <- function(q_data_list) {
     generate_mapping("symptoms_adu_q_2_f", timepoint_labels[c(7:9,11:31)], "tmp_dry_cough"),
     generate_mapping("symptoms_adu_q_1_g", timepoint_labels[1:6], "tmp_wet_cough"),
     generate_mapping("symptoms_adu_q_2_g", timepoint_labels[c(7:9,11:31)], "tmp_wet_cough"),
-    generate_mapping("symptoms_adu_q_1_i1", timepoint_labels[1:6], "tmp_diarrhea"),
+    generate_mapping("symptoms_adu_q_1_i", timepoint_labels[1:2], "tmp_diarrhea"),
+    generate_mapping("symptoms_adu_q_1_i1", timepoint_labels[3:6], "tmp_diarrhea"),
     generate_mapping("symptoms_adu_q_2_i1", timepoint_labels[c(7:9,11:31)], "tmp_diarrhea"),
-    generate_mapping("symptoms_adu_q_1_i2", timepoint_labels[1:6], "tmp_stomach_pain"),
+    generate_mapping("symptoms_adu_q_1_i2", timepoint_labels[3:6], "tmp_stomach_pain"),
     generate_mapping("symptoms_adu_q_2_i2", timepoint_labels[c(7:9,11:31)], "tmp_stomach_pain"),
     generate_mapping("symptoms_adu_q_1_r", timepoint_labels[23:31], "SCT_248657009"),
     generate_mapping("scl90som06_adu_q_1", timepoint_labels[1:6], "SCT_57676002_"),
@@ -173,16 +174,17 @@ number_of_long_covid_symptoms <- function(q_data_list) {
     generate_mapping("scl90som09_adu_q_1", timepoint_labels[1:6], "SCT_62507009"),
     generate_mapping("scl90som09_adu_q_2", timepoint_labels[c(7:9,11:31)], "SCT_62507009"),
     generate_mapping("minia3b_adu_q_1", timepoint_labels[1:6], "SCT_106168000"),
-    generate_mapping("minia3b_adu_q_2", timepoint_labels[c(7:9,11:31)], "SCT_106168000"),
+    generate_mapping("minia3b_adu_q_2", timepoint_labels[c(7:11,13:31)], "SCT_106168000"),
     generate_mapping("scl90som02_adu_q_1", timepoint_labels[1:6], "SCT_404640003"),
     generate_mapping("scl90som02_adu_q_2", timepoint_labels[c(7:9,11:31)], "SCT_404640003"),
     generate_mapping("symptoms_adu_q_1_m", timepoint_labels[c(7:9,11:31)], "SCT_271807003_"),
     generate_mapping("symptoms_adu_q_1_j", timepoint_labels[1:6], "SCT_44169009_"),
-    generate_mapping("symptoms_adu_q_2_j", timepoint_labels[c(7:9,11:31)], "SCT_44169009_")
+    generate_mapping("symptoms_adu_q_2_j", timepoint_labels[c(7:9,11:31)], "SCT_44169009_"),
+    generate_mapping("responsedate_adu_q_1", timepoint_labels[1:31], "responsedate")
     )
   
   q_data_list <- q_data_list["covt29"]
-  
+
   # Per questionnaire, replace all the columns from above.
   data_list_renamed <- mapply(function(q_data, t_id) {
     named_mapping_vector <- mapping %>% 
@@ -191,7 +193,7 @@ number_of_long_covid_symptoms <- function(q_data_list) {
     message(sprintf("Processing %s", t_id))
     
     return(q_data %>% rename(named_mapping_vector) %>% as_tibble() %>%
-             select(all_of(names(named_mapping_vector)), project_pseudo_id))
+             select(all_of(names(named_mapping_vector)), project_pseudo_id, responsedate))
   }, q_data_list, names(q_data_list), SIMPLIFY=F)
   
   out_table <- bind_rows(data_list_renamed) %>% 
@@ -208,9 +210,8 @@ number_of_long_covid_symptoms <- function(q_data_list) {
                             | (!is.na(tmp_wet_cough) & tmp_wet_cough),
            SCT_62315008_ = (!is.na(tmp_diarrhea) & tmp_diarrhea) 
                             | (!is.na(tmp_stomach_pain) & tmp_stomach_pain)) %>%
-    select(-starts_with("tmp_"))
-             
-    
+    select(-starts_with("tmp_"), -responsedate)
+  
   return(out_table)
 }
 
@@ -431,7 +432,7 @@ demographics <- function(q_data_list) {
              migration.status %in% c(3,4) ~ "Second generation immigrant",
              migration.status == 5 ~ "Native born"
            )) %>%
-    select(project_pseudo_id,  DEMOGRAPHICS_45.imp,  DEMOGRAPHICS_46, DEMOGRAPHICS_47, DEMOGRAPHICS_61, work.status, migration.status)
+    select(project_pseudo_id,  DEMOGRAPHICS_45.imp,  DEMOGRAPHICS_46, DEMOGRAPHICS_47, DEMOGRAPHICS_61, work.status, migration.status, physical.activity, smoking.status)
   
   return(out_table)
 }
