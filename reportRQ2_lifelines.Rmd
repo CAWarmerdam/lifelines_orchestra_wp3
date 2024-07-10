@@ -192,7 +192,7 @@ orclu.l$MDD <- factor(orclu.l$MDD, levels = c("No", "Yes"), labels = c("No", "Ye
 # Last wave
 # include only participants who had no missing values in any variables of interest of RQ2
 orclu.v2 <- orclu.l %>%
-    dplyr::select(PSEUDONYM, VISIT, nbCovInfections, MDD, UCLA_LONELINESS_SCALE_UCLA, DEMOGRAPHICS_45, DEMOGRAPHICS_46, SLEEP_ACTUALHOURS.cat, SLEEP_EFFICIENCY.cat, SLEEP_DISTURBANCE.cat, DAYTIME_DYSFUNCTION.cat, SLEEP_LATENCY.cat, PSQI_score, PSQI_score.cat) %>%
+    dplyr::select(PSEUDONYM, VISIT, nbCovInfections, MDD, UCLA_LONELINESS_SCALE_UCLA, DEMOGRAPHICS_45, DEMOGRAPHICS_46, SLEEP_ACTUALHOURS.cat, SLEEP_EFFICIENCY.cat, SLEEP_DISTURBANCE.cat, DAYTIME_DYSFUNCTION.cat, SLEEP_LATENCY.cat, PSQI_score, PSQI_score.cat, physical.activity, smoking.status) %>%
     filter(VISIT == 2) %>% 
     na.omit()
 
@@ -503,29 +503,29 @@ varCol <- gsub("[.][0-9]*$", "", varCol)
 varCol <- gsub("X", "", varCol)
 varCol <- str_replace_all(varCol, pattern = "[.]", replacement = " ")
 
-tabDescrBase <- tibble("Characteristics" = varCol , "Baseline" = char.tab[,1], "Visit 1" = char.tab[,2], " Visit 2" = char.tab[,3], " " = char.tab[,4])
+tabDescrBase <- tibble("Characteristics" = varCol , "Baseline" = char.tab[,1])
 
 
 # change to median and IQR for Physical Activity
-# V0
-tabDescrBase[which(tabDescrBase$Characteristics == "Hours of physical activity per week"),2] <- paste0(round(median(orclu.l$physical.activity[orclu.l$VISIT == "0"], na.rm = TRUE),2), " (", quantile(orclu.l$physical.activity[orclu.l$VISIT == "0"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$physical.activity[orclu.l$VISIT == "0"], na.rm = TRUE)[[4]], "); ", "N=",table(is.na(orclu.l$physical.activity[orclu.l$VISIT == "0"]))[[1]])
-
-# V1
-tabDescrBase[which(tabDescrBase$Characteristics == "Hours of physical activity per week"),3] <- paste0(round(median(orclu.l$physical.activity[orclu.l$VISIT == "1"], na.rm = TRUE),2), " (", quantile(orclu.l$physical.activity[orclu.l$VISIT == "1"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$physical.activity[orclu.l$VISIT == "1"], na.rm = TRUE)[[4]], "); ", "N=",table(is.na(orclu.l$physical.activity[orclu.l$VISIT == "1"]))[[1]])
+# # V0
+# tabDescrBase[which(tabDescrBase$Characteristics == "Hours of physical activity per week"),2] <- paste0(round(median(orclu.l$physical.activity[orclu.l$VISIT == "0"], na.rm = TRUE),2), " (", quantile(orclu.l$physical.activity[orclu.l$VISIT == "0"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$physical.activity[orclu.l$VISIT == "0"], na.rm = TRUE)[[4]], "); ", "N=",table(is.na(orclu.l$physical.activity[orclu.l$VISIT == "0"]))[[1]])
+# 
+# # V1
+# tabDescrBase[which(tabDescrBase$Characteristics == "Hours of physical activity per week"),3] <- paste0(round(median(orclu.l$physical.activity[orclu.l$VISIT == "1"], na.rm = TRUE),2), " (", quantile(orclu.l$physical.activity[orclu.l$VISIT == "1"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$physical.activity[orclu.l$VISIT == "1"], na.rm = TRUE)[[4]], "); ", "N=",table(is.na(orclu.l$physical.activity[orclu.l$VISIT == "1"]))[[1]])
 
 # V2
-tabDescrBase[which(tabDescrBase$Characteristics == "Hours of physical activity per week"),4] <- paste0(round(median(orclu.l$physical.activity[orclu.l$VISIT == "2"], na.rm = TRUE),2), " (", quantile(orclu.l$physical.activity[orclu.l$VISIT == "2"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$physical.activity[orclu.l$VISIT == "2"], na.rm = TRUE)[[4]], "); ", "N=",table(is.na(orclu.l$physical.activity[orclu.l$VISIT == "2"]))[[1]])
+tabDescrBase[which(tabDescrBase$Characteristics == "Hours of physical activity per week"),1] <- paste0(round(median(orclu.l$physical.activity[orclu.l$VISIT == "2"], na.rm = TRUE),2), " (", quantile(orclu.l$physical.activity[orclu.l$VISIT == "2"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$physical.activity[orclu.l$VISIT == "2"], na.rm = TRUE)[[1]], "); ", "N=",table(is.na(orclu.l$physical.activity[orclu.l$VISIT == "2"]))[[1]])
 
 
 # table
-ft.base <- tabDescrBase %>% 
-    flextable() %>%
-    add_header_row(values = c("","Mean (SD)/ N (%)", "P-Value"),
-  colwidths = c(1,3,1)) %>%
-    align(i = 1, part = "header", align = "center") %>%
-    footnote(i = which(tabDescrBase$Characteristics == "Hours of physical activity per week"), j = 1, value = as_paragraph(c("Median (Q1; Q3) and Kruskal-Wallis Test")), ref_symbols = "a")
-
-ft.base
+# ft.base <- tabDescrBase %>% 
+#     flextable() %>%
+#     add_header_row(values = c("","Mean (SD)/ N (%)"),
+#   colwidths = c(1,1)) %>%
+#     align(i = 1, part = "header", align = "center") %>%
+#     footnote(i = which(tabDescrBase$Characteristics == "Hours of physical activity per week"), j = 1, value = as_paragraph(c("Median (Q1; Q3) and Kruskal-Wallis Test")), ref_symbols = "a")
+# 
+# ft.base
 
 
 write.table(x = tabDescrBase, file = "Results/RQ2/Descriptive/Characteristics.csv", sep = ";")
@@ -569,7 +569,7 @@ namessleep <- c("Time to sleep in minutes", "Sleep efficiency", "Sleep efficienc
 
 
 # create descriptive table
-sleep.tab.l <- descrByCatTabPub(varVec = varsleep, nameVec = namessleep, database = orclu.l, catVar = "VISIT", contTest = rep("kruskal", length(varsleep)), print = FALSE, addN = TRUE)
+sleep.tab.l <- descrTabPub(varVec = varsleep, nameVec = namessleep, database = orclu.l, print = FALSE, addN = TRUE)
 
 
 
