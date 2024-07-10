@@ -616,7 +616,7 @@ namesCESD <- c("did your appetite change noticeably, or did your weight increase
 
 
 # create descriptive table
-CESD.tab.l <- descrByCatTabPub(varVec = varCESD, nameVec = namesCESD, database = orclu.l, catVar = "VISIT", contTest = rep("kruskal", length(varCESD)), print = FALSE, addN = TRUE)
+CESD.tab.l <- descrTabPub(varVec = varCESD, nameVec = namesCESD, database = orclu.l, print = FALSE, addN = TRUE)
 
 
 
@@ -626,17 +626,17 @@ varCol.CESD <- gsub("[.][0-9]*$", "", varCol.CESD)
 varCol.CESD <- str_replace_all(varCol.CESD, pattern = "[.]", replacement = " ")
 
 
-tabDescr.CESD <- tibble("Question" = varCol.CESD , "Visit 0" = CESD.tab.l[,1], "Visit 1" = CESD.tab.l[,2], "Visit 2" = CESD.tab.l[,3], " " = CESD.tab.l[,4])
+tabDescr.CESD <- tibble("Question" = varCol.CESD , "Visit 0" = CESD.tab.l[,1])
 
 # adding extra line in table for question 1.1
-tabDescr.CESD <- rbind(c("In the last 14 days did it often happen that", NA, NA, NA, NA), tabDescr.CESD)
+tabDescr.CESD <- rbind(c("In the last 14 days did it often happen that", NA), tabDescr.CESD)
 
 
 # create table to print
 ft.CESD <- tabDescr.CESD %>% 
     flextable() %>%
-    add_header_row(values = c("", "N (%)", "P-Value"),
-  colwidths = c(1, 3, 1)) %>%
+    add_header_row(values = c("", "N (%)"),
+  colwidths = c(1, 1)) %>%
      align(i = 1, part = "header", align = "center")
 
 

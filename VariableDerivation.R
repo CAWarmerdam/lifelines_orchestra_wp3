@@ -218,9 +218,9 @@ number_of_long_covid_symptoms <- function(q_data_list) {
 
 loneliness_scale <- function(q_data_list) {
     mapping <- bind_rows(
-      generate_mapping("isolation_adu_q_2_c", timepoint_labels[31], "tmp_isolation_c"),
-      generate_mapping("isolation_adu_q_2_a", timepoint_labels[31], "tmp_isolation_a"),
-      generate_mapping("isolation_adu_q_2_b", timepoint_labels[31], "tmp_isolation_b"),
+      generate_mapping("isolation_adu_q_2_c", timepoint_labels[31], "isolation_adu_q_2_c"),
+      generate_mapping("isolation_adu_q_2_a", timepoint_labels[31], "isolation_adu_q_2_a"),
+      generate_mapping("isolation_adu_q_2_b", timepoint_labels[31], "isolation_adu_q_2_b"),
     )
     
     # Per questionnaire, replace all the columns from above.
@@ -237,8 +237,8 @@ loneliness_scale <- function(q_data_list) {
     }, q_data_list, names(q_data_list), SIMPLIFY=F)
     
     out_table <- bind_rows(data_list_renamed) %>% 
-      mutate(UCLA_LONELINESS_SCALE_UCLA = rowSums(across(starts_with("tmp_isolation")))) %>%
-      select(project_pseudo_id, UCLA_LONELINESS_SCALE_UCLA)
+      mutate(UCLA_LONELINESS_SCALE_UCLA = rowSums(across(starts_with("isolation")))) %>%
+      select(project_pseudo_id, UCLA_LONELINESS_SCALE_UCLA, starts_with("isolation"))
     
     return(out_table)
 }
