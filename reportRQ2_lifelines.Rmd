@@ -32,6 +32,10 @@ library(flextable)
 library(stringr)
 library(tibble)
 library(tidyverse)
+library(broom)
+library(sandwich)
+library(lmtest)
+library(janitor)
 library(htmltools)
 library(medflex)
 library(car)
@@ -673,7 +677,7 @@ namesUCLA <- c("alone?", "excluded?", "isolated from others? ", "UCLA score")
 
 
 # create descriptive table
-UCLA.tab.l <- descrByCatTabPub(varVec = varUCLA, nameVec = namesUCLA, database = orclu.l, catVar = "VISIT", contTest = rep("kruskal", length(varUCLA)), print = FALSE, addN = TRUE)
+UCLA.tab.l <- descrTabPub(varVec = varUCLA, nameVec = namesUCLA, database = orclu.l, print = FALSE, addN = TRUE)
 
 
 
@@ -683,29 +687,29 @@ varCol.UCLA <- gsub("[.][0-9]*$", "", varCol.UCLA)
 varCol.UCLA <- str_replace_all(varCol.UCLA, pattern = "[.]", replacement = " ")
 
 
-tabDescr.UCLA <- tibble("Question" = varCol.UCLA , "Visit 0" = UCLA.tab.l[,1], "Visit 1" = UCLA.tab.l[,2], "Visit 2" = UCLA.tab.l[,3], " " = UCLA.tab.l[,4])
+tabDescr.UCLA <- tibble("Question" = varCol.UCLA , "Visit 0" = UCLA.tab.l[,1])
 
 # adding extra line in table for question 1.1
-tabDescr.UCLA <- rbind(c("In the last 14 days how often do you feel", NA, NA, NA, NA), tabDescr.UCLA)
+tabDescr.UCLA <- rbind(c("In the last 14 days how often do you feel", NA), tabDescr.UCLA)
 
 
 # change to median and IQR for score
 # V0
-tabDescr.UCLA[which(tabDescr.UCLA$Question == "UCLA score"),2] <- paste0(round(median(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "0"], na.rm = TRUE),2), " (", quantile(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "0"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "0"], na.rm = TRUE)[[4]], "); ", "N=",table(is.na(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "0"]))[[1]])
+# tabDescr.UCLA[which(tabDescr.UCLA$Question == "UCLA score"),2] <- paste0(round(median(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "0"], na.rm = TRUE),2), " (", quantile(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "0"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "0"], na.rm = TRUE)[[4]], "); ", "N=",table(is.na(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "0"]))[[1]])
 
 # V1
-tabDescr.UCLA[which(tabDescr.UCLA$Question == "UCLA score"),3] <- paste0(round(median(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "1"], na.rm = TRUE),2), " (", quantile(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "1"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "1"], na.rm = TRUE)[[4]], "); ", "N=",table(is.na(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "1"]))[[1]])
+# tabDescr.UCLA[which(tabDescr.UCLA$Question == "UCLA score"),3] <- paste0(round(median(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "1"], na.rm = TRUE),2), " (", quantile(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "1"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "1"], na.rm = TRUE)[[4]], "); ", "N=",table(is.na(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "1"]))[[1]])
 
 # V2
-tabDescr.UCLA[which(tabDescr.UCLA$Question == "UCLA score"),4] <- paste0(round(median(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "2"], na.rm = TRUE),2), " (", quantile(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "2"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "2"], na.rm = TRUE)[[4]], "); ", "N=",table(is.na(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "2"]))[[1]])
+tabDescr.UCLA[which(tabDescr.UCLA$Question == "UCLA score"),2] <- paste0(round(median(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "2"], na.rm = TRUE),2), " (", quantile(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "2"], na.rm = TRUE)[[2]], "; ", quantile(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "2"], na.rm = TRUE)[[4]], "); ", "N=",table(is.na(orclu.l$UCLA_LONELINESS_SCALE_UCLA[orclu.l$VISIT == "2"]))[[1]])
 
 
 
 # create flextable
 ft.UCLA <- tabDescr.UCLA %>% 
     flextable() %>%
-    add_header_row(values = c("", "N (%)", "P-Value"),
-  colwidths = c(1, 3, 1)) %>%
+    add_header_row(values = c("", "N (%)"),
+  colwidths = c(1, 1)) %>%
     align(i = 1, part = "header", align = "center") %>%
     footnote(i = which(tabDescr.UCLA$Question == "UCLA score"), j = 1, value = as_paragraph(c("Median (Q1; Q3) and Kruskal-Wallis Test")), ref_symbols = "a")
 
@@ -726,6 +730,8 @@ write.table(x = tabDescr.UCLA, file = "Results/RQ2/Descriptive/UCLA.csv", sep = 
 ```{r mediation analysis}
 # Code after descriptive tables
 # Model with actual hours of sleep ----------------------------------------
+
+data <- orclu.l
 
 mod.sleephours <- glm(nbCovInfections ~ SLEEP_ACTUALHOURS + DEMOGRAPHICS_45.imp +
                    DEMOGRAPHICS_46, family = "poisson", data = data)
@@ -853,7 +859,7 @@ res.psqi <- mod.psqi %>%
     add_row(term = paste("residual deviance: df = ", res.dev.psqi[2]), estimate = res.dev.psqi[1],
             p_value = res.dev.psqi[3])
 
-write.table(res.pqsi, file = "Results/RQ2/Poisson/PSQI.csv", sep = ";", row.names = TRUE)
+write.table(res.psqi, file = "Results/RQ2/Poisson/PSQI.csv", sep = ";", row.names = TRUE)
 
 
 # Model with PSQI and loneliness --------------------------------
@@ -879,7 +885,7 @@ res.psqi2 <- mod.psqi2 %>%
     add_row(term = paste("residual deviance: df = ", res.dev.psqi2[2]), estimate = res.dev.psqi2[1],
             p_value = res.dev.psqi2[3])
 
-write.table(res.pqsi2, file = "Results/RQ2/Poisson/PSQI2.csv", sep = ";", row.names = TRUE)
+write.table(res.psqi2, file = "Results/RQ2/Poisson/PSQI2.csv", sep = ";", row.names = TRUE)
 ```
 
 
