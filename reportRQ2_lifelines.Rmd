@@ -582,7 +582,7 @@ varCol.l <- gsub("[.][0-9]*$", "", varCol.l)
 varCol.l <- str_replace_all(varCol.l, pattern = "[.]", replacement = " ")
 varCol.l <- gsub("X", "", varCol.l)
 
-tabSleep.l <- tibble("Characteristics" = varCol.l , "Visit 0" = sleep.tab.l[,1])
+tabSleep.l <- tibble("Characteristics" = varCol.l , "Visit 2" = sleep.tab.l[,1])
 
 # adding extra line in table for question 8.5
 tabSleep.l <- rbind(tabSleep.l[c(1:20),],c("During the past month, how often have you had trouble sleeping because you", NA), tabSleep.l[c(21:dim(tabSleep.l)[[1]]),])
@@ -630,7 +630,7 @@ varCol.CESD <- gsub("[.][0-9]*$", "", varCol.CESD)
 varCol.CESD <- str_replace_all(varCol.CESD, pattern = "[.]", replacement = " ")
 
 
-tabDescr.CESD <- tibble("Question" = varCol.CESD , "Visit 0" = CESD.tab.l[,1])
+tabDescr.CESD <- tibble("Question" = varCol.CESD , "Visit 2" = CESD.tab.l[,1])
 
 # adding extra line in table for question 1.1
 tabDescr.CESD <- rbind(c("In the last 14 days did it often happen that", NA), tabDescr.CESD)
@@ -687,7 +687,7 @@ varCol.UCLA <- gsub("[.][0-9]*$", "", varCol.UCLA)
 varCol.UCLA <- str_replace_all(varCol.UCLA, pattern = "[.]", replacement = " ")
 
 
-tabDescr.UCLA <- tibble("Question" = varCol.UCLA , "Visit 0" = UCLA.tab.l[,1])
+tabDescr.UCLA <- tibble("Question" = varCol.UCLA , "Visit 2" = UCLA.tab.l[,1])
 
 # adding extra line in table for question 1.1
 tabDescr.UCLA <- rbind(c("In the last 14 days how often do you feel", NA), tabDescr.UCLA)
