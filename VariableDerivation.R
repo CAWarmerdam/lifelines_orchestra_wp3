@@ -136,14 +136,17 @@ number_of_covid_infections <- function(q_data_list) {
     group_by(project_pseudo_id, .drop=F) %>%
     arrange(responsedate) %>%
     mutate(
-      meandate = as_date(rowMeans(cbind(lag(responsedate), responsedate), na.rm=T))) %>%
-    filter(!is.na(covid_infection) & covid_infection) %>%
+      meandate = as_date(rowMeans(cbind(lag(responsedate), responsedate), na.rm=T)),
+      covid_row = !is.na(covid_infection) & covid_infection,
+      any_covid_rows = any(covid_row)) %>%
+    group_by(project_pseudo_id, covid_row, .drop=F) %>%
     mutate(new_positive_test_date = case_when(
-      is.na(lag(meandate)) & !is.na(meandate) ~ T,
-      meandate - lag(meandate) > 90 ~ T,
+      covid_row & is.na(lag(meandate)) & !is.na(meandate) ~ T,
+      covid_row & meandate - lag(meandate) > 90 ~ T,
       TRUE ~ F
     )) %>%
-    summarise(nbCovInfections = sum(new_positive_test_date, na.rm = T), CovInfectionDates = list(meandate),
+    ungroup(covid_row) %>%
+    summarise(nbCovInfections = sum(new_positive_test_date, na.rm = T), CovInfectionDates = list(meandate[covid_row]),
               AGGREGATED_1280 = nbCovInfections > 0)
   
   return(out_table)
