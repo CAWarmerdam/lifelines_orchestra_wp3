@@ -102,9 +102,17 @@ orclu.l$migration.status <- factor(orclu.l$migration.status,
                                    levels = c("Second generation immigrant", "First generation immigrant",
                                               "Native born"))
 
+isolation_variables <- c("isolation_adu_q_2_c", "isolation_adu_q_2_a", "isolation_adu_q_2_b")
 
+# changing factor level order of isolation variables
+orclu.l[, isolation_variables] <- lapply(orclu.l[,isolation_variables], factor, ordered = TRUE,
+              levels=c(1,2,3), labels=c("rarely or never", "sometimes", "often"))
 
+mini_variables <- c("minia3a_adu_q_2", "minia3f_adu_q_2", "minia1_adu_q_2", "minia3b_adu_q_2", "minio3a_adu_q_2", "minio1a_adu_q_2", "minio3e_adu_q_2")
 
+# changing factor level order of isolation variables
+orclu.l[, mini_variables] <- lapply(orclu.l[,mini_variables], factor, ordered = TRUE,
+              levels=c(1,2), labels=c("yes", "no"))
 
 # column numbers of CES-D variable
 cesd.col <- which(startsWith(colnames(orclu.l), "CES") == TRUE)[-1]
