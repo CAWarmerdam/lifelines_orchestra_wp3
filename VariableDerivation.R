@@ -69,7 +69,7 @@ q_specific_harmonization <- function(q_data, snippets) {
     q_data <- snippet(q_data)
     # Remove columns that have been added
     if (length(columns_to_add) > 0) {
-      q_data <- q_data %>% select(-all_of(!!!names(columns_to_add)))
+      q_data <- q_data %>% dplyr::select(-all_of(!!!names(columns_to_add)))
     }
     return(q_data)
   }
@@ -111,7 +111,7 @@ number_of_covid_infections <- function(q_data_list) {
          optional = c(), 
          func = .func_covid_infections_1_15),
     list(cols = c("covid_infection_15b_19", "covid_infection_ggd_15b_19"), 
-         optional = c(), 
+         optional = c(),
          func = .func_covid_infection_15b_19), 
     list(cols = c("covid_ggdtest_20_29", "covid_othertest_20_29", "covid_selftest_20_29", "covid_worktest_20_29"), 
          optional = c("covid_accesstest_20_26" = NA_integer_), 
@@ -121,13 +121,13 @@ number_of_covid_infections <- function(q_data_list) {
   # Per questionnaire, replace all the columns from above.
   data_list_renamed <- mapply(function(q_data, t_id) {
     named_mapping_vector <- mapping %>% 
-      filter(t == t_id) %>% select(qnew, q) %>% deframe()
+      filter(t == t_id) %>% dplyr::select(qnew, q) %>% deframe()
     
     message(sprintf("Processing %s", t_id))
     
     return(q_specific_harmonization(
       q_data %>% rename(named_mapping_vector) %>% as_tibble(), get_covid_infection) %>% 
-        select(project_pseudo_id, covid_infection, responsedate))
+        dplyr::select(project_pseudo_id, covid_infection, responsedate))
   }, q_data_list, names(q_data_list), SIMPLIFY=F)
   
   # Filter rows where tested postive ()

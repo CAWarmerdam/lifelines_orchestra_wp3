@@ -52,12 +52,12 @@
 #' @return The data frame with added columns indicating COVID infections and test type.
 .func_covid_infections_20_29 <- function(q_data) {
   q_data %>% mutate(
-    covid_infection_tmp = sum(c(
-      covid_accesstest_20_26 == 1,
-      covid_ggdtest_20_29 == 1,
-      covid_selftest_20_29 == 1,
-      covid_worktest_20_29 == 1,
-      covid_othertest_20_29 == 1), na.rm=T),
+    covid_infection_tmp = rowSums(
+      dplyr::select(., covid_accesstest_20_26, 
+           covid_ggdtest_20_29, 
+           covid_selftest_20_29, 
+           covid_worktest_20_29, 
+           covid_othertest_20_29) == 1, na.rm = TRUE),
     covid_infection = case_when(
       covid_infection_tmp >= 1 ~ T,
       !is.na(covid_accesstest_20_26) ~ F,
@@ -73,7 +73,7 @@
       covid_selftest_20_29 == 1 ~ "self",
       covid_worktest_20_29 == 1 ~ "work",
       covid_othertest_20_29 == 1 ~ "other")
-  ) %>% select(-covid_infection_tmp)
+  ) %>% dplyr::select(-covid_infection_tmp)
 }
 
 # Main
