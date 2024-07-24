@@ -269,12 +269,12 @@ sleep_quality <- function(q_data_list) {
   
   data_list_renamed <- mapply(function(q_data, t_id) {
     named_mapping_vector <- mapping %>% 
-      filter(t == t_id) %>% select(qnew, q) %>% deframe()
+      filter(t == t_id) %>% dplyr::select(qnew, q) %>% deframe()
     
     message(sprintf("Processing %s", t_id))
     
     return(q_data %>% rename(named_mapping_vector) %>% as_tibble() %>% 
-             select(all_of(names(named_mapping_vector)), project_pseudo_id))
+             dplyr::select(all_of(names(named_mapping_vector)), project_pseudo_id))
   }, q_data_list, names(q_data_list), SIMPLIFY=F)
   
   PSQI_variables <- c("SLEEP_ACTUALHOURS.cat",
@@ -283,12 +283,25 @@ sleep_quality <- function(q_data_list) {
     "DAYTIME_DYSFUNCTION.cat", 
     "SLEEP_LATENCY.cat")
   
+  MIDDAY <- hms("12:00:00")
+  ONE_O_CLOCK <- hms("13:00:00")
+  SIX_MORNING <- hms("06:00:00")
+  
+  outlier_function <- function(x) (quantile(x, 0.75, na.rm=T) - quantile(x, 0.25, na.rm=T)) * 3 + quantile(x, 0.75, na.rm=T)
+  
   out_table <- bind_rows(data_list_renamed) %>% 
     mutate(SLEEP_ACTUALHOURS.cat = case_when(SLEEP_ACTUALHOURS >= 7 ~ 0,
                                              SLEEP_ACTUALHOURS >= 6 ~ 1,
                                              SLEEP_ACTUALHOURS >= 5 ~ 2,
                                              SLEEP_ACTUALHOURS < 5 ~ 3),
-           HOURS_IN_BED = time_length(hms(sleeptimes_end) - hms(sleeptimes_start), unit="hours") + 24,
+           sleeptimes_end_hms = hms(sleeptimes_end),
+           sleeptimes_start_hms = hms(sleeptimes_start),
+           sleeptimes_start_hms = if_else(sleeptimes_end_hms < MIDDAY & sleeptimes_start_hms > SIX_MORNING & sleeptimes_start_hms < ONE_O_CLOCK,
+                                          sleeptimes_start_hms - MIDDAY,
+                                          sleeptimes_start_hms),
+           HOURS_IN_BED = if_else(sleeptimes_start_hms < sleeptimes_end_hms, 
+                                  time_length(sleeptimes_end_hms - sleeptimes_start_hms, unit="hours"),
+                                  time_length(sleeptimes_end_hms - sleeptimes_start_hms, unit="hours") + 24),
            SLEEP_EFFICIENCY = SLEEP_ACTUALHOURS / HOURS_IN_BED * 100,
            SLEEP_EFFICIENCY.cat = case_when(SLEEP_EFFICIENCY >= 85 ~ 0,
                                              SLEEP_EFFICIENCY >= 75 ~ 1,
@@ -304,6 +317,8 @@ sleep_quality <- function(q_data_list) {
                                            DAYTIME_DYSFUNCTION <= 2 ~ 1,
                                            DAYTIME_DYSFUNCTION <= 4 ~ 2,
                                            DAYTIME_DYSFUNCTION > 4 ~ 3),
+           SLEEP_TIMETOSLEEP = case_when(SLEEP_TIMETOSLEEP > outlier_function(SLEEP_TIMETOSLEEP)  ~ NA_integer_,
+                                         TRUE ~ SLEEP_TIMETOSLEEP),
            SLEEP_TIMETOSLEEP_cat = case_when(SLEEP_TIMETOSLEEP < 15 ~ 0,
                                              SLEEP_TIMETOSLEEP < 30 ~ 1,
                                              SLEEP_TIMETOSLEEP < 60 ~ 2,
