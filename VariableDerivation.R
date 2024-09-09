@@ -152,6 +152,146 @@ number_of_covid_infections <- function(q_data_list) {
   return(out_table)
 }
 
+vaccination_mindset <- function(q_data_list) {
+  variables_path <- "/groups/umcg-lifelines/rsc01/releases/covid/v3/variables/"
+  variables <- bind_rows(mapply(fread, file.path(variables_path, list.files(variables_path)), SIMPLIFY=F)) %>%
+    select(variable_name, definition_en)
+  
+  enumerations_path <- "/groups/umcg-lifelines/rsc01/releases/covid/v3/enumerations/"
+  enumerations <- bind_rows(mapply(fread, file.path(enumerations_path, list.files(enumerations_path)), SIMPLIFY=F)) %>%
+    select(variable_name, enumeration_code, enumeration_en)
+  
+  mindset_out <- purrr::reduce(list(
+    "covt17" = as_tibble(q_data_list$covt17 %>% select(project_pseudo_id, contains("covidvaccine_adu_q_2_e"))),
+    "covt20" = as_tibble(q_data_list$covt20 %>% select(project_pseudo_id, contains("covidvaccine_adu_q_2_e")))),
+    full_join, by = c("project_pseudo_id"))
+  
+  proc <- mindset_out %>% 
+    inner_join(out_table, by ="project_pseudo_id") %>%
+    inner_join(demographic_tib, by ="project_pseudo_id") %>%
+    filter(!is.na(vaccination_status_broad))
+  
+  # Custom function to wrap `table` and return a tibble
+  table_as_tibble <- function(x) {
+    list(as.list(table(x, useNA="always")))
+  }
+  
+  demographic_summary <- bind_rows(list(
+    proc %>%
+      summarise(across(c("DEMOGRAPHICS_46"), list(mean = ~mean(.x, na.rm = TRUE), 
+                                                  median = ~median(.x, na.rm = TRUE),
+                                                  sd = ~sd(.x, na.rm=TRUE)), .names = "{.fn}_{col}")) %>%
+      pivot_longer(everything(), names_pattern = "(median|mean|sd)_(.*_.*)", names_to = c("value_id", "name"), values_to="value"),
+    proc %>%
+      summarise(across(c("vaccination_status_broad", "vaccination_status_detailed",
+                                        "DEMOGRAPHICS_45.imp", "DEMOGRAPHICS_47",
+                                        "DEMOGRAPHICS_61", "work.status", "migration.status", "physical.activity",
+                                        "smoking.status", "education"), 
+                               list(table = ~table_as_tibble(.x)), .names = "{col}")) %>%
+      pivot_longer(everything()) %>% 
+      unnest_longer(value, values_to="{col}") %>%
+      group_by(name) %>% mutate(percentage = value / sum(value) * 100, 
+                                percentageExcludingNA = value / sum(value[!is.na(value_id)]) * 100)))
+  
+  fwrite(demographic_summary, "demographic_summary.tsv", sep="\t", col.names=T, row.names=F, quote=F, na="NA")
+  
+  demographic_x_vaccination <- bind_rows(list(
+    proc %>%
+      group_by(vaccination_status_broad) %>%
+      summarise(across(c("DEMOGRAPHICS_46"), list(mean = ~mean(.x, na.rm = TRUE), 
+                                                  median = ~median(.x, na.rm = TRUE),
+                                                  sd = ~sd(.x, na.rm=TRUE)), .names = "{.fn}_{col}")) %>%
+      pivot_longer(-vaccination_status_broad, names_pattern = "(median|mean|sd)_(.*_.*)", names_to = c("value_id", "name"), values_to="value"),
+    proc %>%
+      group_by(vaccination_status_broad) %>%
+      summarise(across(c("vaccination_status_detailed",
+                         "DEMOGRAPHICS_45.imp", "DEMOGRAPHICS_47",
+                         "DEMOGRAPHICS_61", "work.status", "migration.status", "physical.activity",
+                         "smoking.status", "education"), 
+                       list(table = ~table_as_tibble(.x)), .names = "{col}")) %>%
+      pivot_longer(-vaccination_status_broad) %>% 
+      unnest_longer(value, values_to="{col}") %>%
+      group_by(name, vaccination_status_broad) %>% mutate(percentage = value / sum(value) * 100, 
+                                percentageExcludingNA = value / sum(value[!is.na(value_id)]) * 100))) %>%
+    pivot_wider(names_from=c(vaccination_status_broad), values_from=c(value, percentage, percentageExcludingNA))
+  
+  fwrite(demographic_x_vaccination, "demographics_x_vaccination.tsv", sep="\t", col.names=T, row.names=F, quote=F, na="NA")
+  
+  mindset_x_vaccination <- proc %>%
+    group_by(vaccination_status_broad) %>%
+    summarise(across(contains("covidvaccin"), 
+                     list(table = ~table_as_tibble(.x)), .names = "{col}")) %>%
+    pivot_longer(-vaccination_status_broad) %>% unnest_longer(value) %>% 
+    group_by(name, vaccination_status_broad) %>% mutate(percentage = value / sum(value) * 100, 
+                                                        percentageExcludingNA = value / sum(value[!is.na(value_id)]) * 100) %>%
+    mutate(value_id = as.integer(value_id)) %>%
+    left_join(as_tibble(variables), by =c("name" = "variable_name")) %>%
+    left_join(as_tibble(enumerations), by =c("name" = "variable_name", "value_id" = "enumeration_code")) %>%
+    pivot_wider(names_from=c(vaccination_status_broad), values_from=c(value, percentage, percentageExcludingNA))
+  
+  fwrite(mindset_x_vaccination, "mindset_x_vaccination.tsv", sep="\t", col.names=T, row.names=F, quote=F, na="NA")
+}
+
+
+vaccination_status <- function(q_data_list) {
+  mapping <- bind_rows(
+    generate_mapping("responsedate_adu_q_1", timepoint_labels[1:31], "responsedate"))
+  
+  # Per questionnaire, replace all the columns from above.
+  data_list_renamed <- mapply(function(q_data, t_id) {
+    named_mapping_vector <- mapping %>% 
+      filter(t == t_id) %>% select(qnew, q) %>% deframe()
+    
+    message(sprintf("Processing %s", t_id))
+    
+    
+    pattern_match <- "^covt\\d{2}[b]?_covidvaccine"
+    pattern_remove <- "^covt\\d{2}[b]?_"
+    
+    # Get column names
+    col_names <- colnames(q_data)
+    
+    # Check which column names match the pattern
+    matches <- grepl(pattern_match, col_names)
+    
+    # Strip the prefix from the matching column names
+    stripped_col_names <- ifelse(matches, sub(pattern_remove, "", col_names), col_names)
+    
+    # Rename the columns in the dataframe
+    colnames(q_data) <- stripped_col_names
+    
+    print("renamed")
+    print(colnames(q_data))
+
+    q_data <- .func_covid_vaccines(as_tibble(q_data))
+    
+    print("done")
+    
+    
+    return(q_data %>% rename(named_mapping_vector) %>% as_tibble() %>%
+             select(all_of(names(named_mapping_vector)), vaccination_status, project_pseudo_id, responsedate))
+  }, q_data_list, names(q_data_list), SIMPLIFY=F)
+  
+  out_table <- bind_rows(data_list_renamed, .id="questionnaire") %>% 
+    mutate(project_pseudo_id = factor(project_pseudo_id)) %>%
+    group_by(project_pseudo_id, .drop=F) %>%
+    arrange(responsedate) %>%
+    filter(any(questionnaire=="covt29")) %>%
+    summarise(vaccination_status_detailed = case_when(
+      any(vaccination_status == "both") ~ "at least fully vaccinated", 
+      any(vaccination_status == "repeat") ~ "likely fully vaccinated",
+      any(vaccination_status %in% c("first")) ~ "at least partially vaccinated", 
+      !all(is.na(vaccination_status)) & all(na.omit(vaccination_status) == "no") ~ "never had a vaccination",
+      TRUE ~ "not answered/dropout")) %>%
+    mutate(vaccination_status_broad = case_when(
+      vaccination_status_detailed %in% c("at least fully vaccinated", "likely fully vaccinated", "at least partially vaccinated") ~ "vaccinated (any)",
+      vaccination_status_detailed == "never had a vaccination" ~ "unvaccinated"
+    ))
+
+  return(out_table)
+}
+
+
 
 number_of_long_covid_symptoms <- function(q_data_list) {
   mapping <- bind_rows(
@@ -307,12 +447,12 @@ sleep_quality <- function(q_data_list) {
                                              SLEEP_EFFICIENCY >= 75 ~ 1,
                                              SLEEP_EFFICIENCY >= 65 ~ 2,
                                              SLEEP_EFFICIENCY < 65 ~ 3),
-           SLEEP_DISTURBANCE = rowSums(across(starts_with("SLEEP_PROBLEMS"))),
+           SLEEP_DISTURBANCE = rowSums(across(starts_with("SLEEP_PROBLEMS"), .x - 1)),
            SLEEP_DISTURBANCE.cat = case_when(SLEEP_DISTURBANCE == 0 ~ 0,
                                              SLEEP_DISTURBANCE <= 6 ~ 1,
                                              SLEEP_DISTURBANCE <= 13 ~ 2,
                                              SLEEP_DISTURBANCE > 13 ~ 3),
-           DAYTIME_DYSFUNCTION = SLEEP_TROUBLE_STAYINGAWAKE + SLEEP_LACKING_ENTHUSIASM,
+           DAYTIME_DYSFUNCTION = (SLEEP_TROUBLE_STAYINGAWAKE - 1) + (SLEEP_LACKING_ENTHUSIASM - 1),
            DAYTIME_DYSFUNCTION.cat = case_when(DAYTIME_DYSFUNCTION == 0 ~ 0,
                                            DAYTIME_DYSFUNCTION <= 2 ~ 1,
                                            DAYTIME_DYSFUNCTION <= 4 ~ 2,
@@ -323,7 +463,7 @@ sleep_quality <- function(q_data_list) {
                                              SLEEP_TIMETOSLEEP < 30 ~ 1,
                                              SLEEP_TIMETOSLEEP < 60 ~ 2,
                                              SLEEP_TIMETOSLEEP > 60 ~ 3),
-           SLEEP_LATENCY = (SLEEP_TIMETOSLEEP_cat + SLEEP_PROBLEMS_TIME),
+           SLEEP_LATENCY = (SLEEP_TIMETOSLEEP_cat + (SLEEP_PROBLEMS_TIME - 1)),
            SLEEP_LATENCY.cat = case_when(SLEEP_LATENCY == 0 ~ 0,
                                          SLEEP_LATENCY <= 2 ~ 1,
                                          SLEEP_LATENCY <= 4 ~ 2,

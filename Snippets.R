@@ -76,6 +76,75 @@
   ) %>% dplyr::select(-covid_infection_tmp)
 }
 
+.func_covid_vaccines <- function(q_data) {
+  vaccination_status_levels = c("both", "first", "no", "skipped", "repeat")
+  
+  if ("covidvaccine_adu_q_3_a" %in% colnames(q_data)) {
+    q_data <- mutate(q_data, vaccination_status = factor(case_when(
+      covidvaccine_adu_q_3_a == 1 ~ "first",
+      covidvaccine_adu_q_3_a == 2 ~ "both",
+      covidvaccine_adu_q_3_a == 3 ~ "no",
+      covidvaccine_adu_q_3_a == 4 ~ "skipped",
+      TRUE ~ "skipped"
+    ), levels = vaccination_status_levels),
+    vaccinationUpToDate = TRUE)
+  } else if ("covidvaccine_adu_q_4_a" %in% colnames(q_data)) {
+    q_data <- mutate(q_data, vaccination_status = factor(case_when(
+      covidvaccine_adu_q_4_a == 1 ~ "first",
+      covidvaccine_adu_q_4_a %in% c(2,3) ~ "both",
+      covidvaccine_adu_q_4_a == 4 ~ "no",
+      covidvaccine_adu_q_4_a == 4 ~ "skipped"
+    ), levels = vaccination_status_levels))
+  } else if ("covidvaccine_adu_q_5_a" %in% colnames(q_data)) {
+    q_data <- mutate(q_data, vaccination_status = factor(case_when(
+      covidvaccine_adu_q_5_a == 2 ~ "first",
+      covidvaccine_adu_q_5_a %in% c(1,3,4) ~ "both",
+      covidvaccine_adu_q_5_a == 5 ~ "no",
+      covidvaccine_adu_q_5_a == 4 ~ "skipped"
+    ), levels = vaccination_status_levels))
+  } else if ("covidvaccine_adu_q_6_a" %in% colnames(q_data)) {
+    q_data <- mutate(q_data, vaccination_status = factor(case_when(
+      covidvaccine_adu_q_6_a == 1 ~ "both",
+      covidvaccine_adu_q_6_a == 2 ~ "first",
+      covidvaccine_adu_q_6_a == 3 ~ "no",
+      covidvaccine_adu_q_6_a == 4 ~ "skipped"
+    ), levels = vaccination_status_levels))
+  } else if ("covidvaccine_adu_q_7_a1" %in% colnames(q_data)) {
+    q_data <- mutate(q_data, vaccination_status = factor(case_when(
+      covidvaccine_adu_q_7_a2 == 1 ~ "both",
+      covidvaccine_adu_q_7_a1 == 1 ~ "first",
+      covidvaccine_adu_q_7_a5 == 1 ~ "no",
+      covidvaccine_adu_q_7_a6 == 1 ~ "skipped",
+      covidvaccine_adu_q_7_a3 == 1 ~ "repeat",
+      covidvaccine_adu_q_7_a4 == 1 ~ "repeat",
+    ), levels = vaccination_status_levels))
+  } else if ("covidvaccine_adu_q_8_a1" %in% colnames(q_data)) {
+    q_data <- mutate(q_data, vaccination_status = factor(case_when(
+      covidvaccine_adu_q_8_a2 == 1 ~ "both",
+      covidvaccine_adu_q_8_a1 == 1 ~ "first",
+      covidvaccine_adu_q_8_a5 == 1 ~ "no",
+      covidvaccine_adu_q_8_a6 == 1 ~ "skipped",
+      covidvaccine_adu_q_8_a3 == 1 ~ "repeat",
+      covidvaccine_adu_q_8_a4 == 1 ~ "repeat",
+      TRUE ~ "skipped"
+    ), levels = vaccination_status_levels))
+  } else if ("covidvaccine_adu_q_9_a1" %in% colnames(q_data)) {
+    q_data <- mutate(q_data, vaccination_status = factor(case_when(
+      covidvaccine_adu_q_9_a2 == 1 ~ "both",
+      covidvaccine_adu_q_9_a1 == 1 ~ "first",
+      covidvaccine_adu_q_9_a6 == 1 ~ "no",
+      covidvaccine_adu_q_9_a7 == 1 ~ "skipped",
+      covidvaccine_adu_q_9_a3 == 1 ~ "repeat",
+      covidvaccine_adu_q_9_a4 == 1 ~ "repeat",
+      covidvaccine_adu_q_9_a5 == 1 ~ "repeat",
+      TRUE ~ "skipped"
+    ), levels = vaccination_status_levels))
+  } else {
+    q_data <- mutate(q_data, vaccination_status = factor(NA_character_, levels = vaccination_status_levels))
+  }
+  return(q_data)
+}
+
 # Main
 
 #' Execute main
