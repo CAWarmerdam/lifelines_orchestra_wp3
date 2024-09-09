@@ -447,7 +447,7 @@ sleep_quality <- function(q_data_list) {
                                              SLEEP_EFFICIENCY >= 75 ~ 1,
                                              SLEEP_EFFICIENCY >= 65 ~ 2,
                                              SLEEP_EFFICIENCY < 65 ~ 3),
-           SLEEP_DISTURBANCE = rowSums(across(starts_with("SLEEP_PROBLEMS"), .x - 1)),
+           SLEEP_DISTURBANCE = rowSums(across(starts_with("SLEEP_PROBLEMS"), ~ .x - 1)),
            SLEEP_DISTURBANCE.cat = case_when(SLEEP_DISTURBANCE == 0 ~ 0,
                                              SLEEP_DISTURBANCE <= 6 ~ 1,
                                              SLEEP_DISTURBANCE <= 13 ~ 2,
